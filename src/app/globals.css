@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f9fafb;
+  --ink: #0a0a0a;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+html { direction: rtl; }
