@@ -4,11 +4,18 @@ import type { Database } from "./supabase/types";
 export type SentenceType = "survive" | "death";
 export type TimeSlot = "morning" | "noon" | "afternoon" | "night" | "general";
 
-// Map IST hour → narrative time slot, mirroring the original tier escalation.
+// Map IST hour → narrative time slot, 1:1 with the 4 buttons in the
+// suggestion form (בוקר / צהריים / אחה"צ / לילה):
+//   06:00–11:59 → morning   (בוקר)
+//   12:00–15:59 → noon      (צהריים)
+//   16:00–19:59 → afternoon (אחה"צ)
+//   20:00–05:59 → night     (לילה — wraps past midnight)
+// The game itself is locked before 08:00 IST so the early-AM night range is
+// rarely hit in production, but we keep the mapping complete for correctness.
 export function timeSlotForHour(h: number): Exclude<TimeSlot, "general"> {
-  if (h < 11) return "morning";
-  if (h < 15) return "noon";
-  if (h < 19) return "afternoon";
+  if (h >= 6 && h < 12) return "morning";
+  if (h >= 12 && h < 16) return "noon";
+  if (h >= 16 && h < 20) return "afternoon";
   return "night";
 }
 
