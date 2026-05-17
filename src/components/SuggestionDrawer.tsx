@@ -41,7 +41,7 @@ export function SuggestionDrawer({
       setError("בחר אם זה משפט שרדת או מוות");
       return;
     }
-    if (!userRow) {
+    if (!userRow || !supabase) {
       setError("נדרשת התחברות");
       return;
     }

@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserRow = useCallback(
     async (uid: string) => {
+      if (!supabase) return;
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -40,6 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // No client available (env vars missing) — stay un-authed silently so the
+    // rest of the app still renders. Game state will just be ephemeral.
+    if (!supabase) { setLoading(false); return; }
+
     let unsub: (() => void) | null = null;
     (async () => {
       const { data: { session: existing } } = await supabase.auth.getSession();
@@ -72,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateNickname = useCallback(
     async (nickname: string) => {
-      if (!session?.user) return { error: "not signed in" };
+      if (!supabase || !session?.user) return { error: "not signed in" };
       const trimmed = nickname.trim();
       if (trimmed.length < 2 || trimmed.length > 18)
         return { error: "כינוי חייב להיות 2 עד 18 תווים" };

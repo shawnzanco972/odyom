@@ -14,6 +14,7 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
   if (!session || !isAnon) return null;
 
   const handleLink = async () => {
+    if (!supabase) return;
     setBusy(true);
     const { error } = await supabase.auth.linkIdentity({
       provider: "google",

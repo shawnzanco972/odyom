@@ -8,6 +8,7 @@ export function WelcomeGoogleButton({ onSuccess }: { onSuccess: () => void }) {
   const [busy, setBusy] = useState(false);
 
   const handleClick = async () => {
+    if (!supabase) return;
     setBusy(true);
     onSuccess(); // dismiss intro optimistically — user will land back here authed
     const { error } = await supabase.auth.signInWithOAuth({
