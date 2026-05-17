@@ -10,6 +10,7 @@ import { DevPanel, type ForceOutcome } from "@/components/DevPanel";
 import { WelcomeGoogleButton } from "@/components/WelcomeGoogleButton";
 import { BottomNav } from "@/components/BottomNav";
 import { TopNav } from "@/components/TopNav";
+import { ManifestoModal } from "@/components/ManifestoModal";
 import {
   LiveFeed,
   NextWheelCountdown,
@@ -33,6 +34,7 @@ const RouletteWheel = dynamic(
 
 type Phase = "idle" | "requesting" | "spinning" | "resolved" | "locked";
 const INTRO_KEY = "has_seen_intro";
+const MANIFESTO_KEY = "has_seen_manifesto";
 
 export default function GamePage() {
   const router = useRouter();
@@ -51,6 +53,23 @@ export default function GamePage() {
     try { window.localStorage.setItem(INTRO_KEY, "true"); } catch {}
     setShowIntro(false);
   }, []);
+
+  // Manifesto modal — auto-opens for first-time visitors after the intro,
+  // and on-demand via the `?` button in the header / TopNav.
+  const [manifestoOpen, setManifestoOpen] = useState(false);
+  useEffect(() => {
+    if (!mounted || showIntro) return;
+    try {
+      if (!window.localStorage.getItem(MANIFESTO_KEY)) {
+        setManifestoOpen(true);
+      }
+    } catch {}
+  }, [mounted, showIntro]);
+  const closeManifesto = useCallback(() => {
+    try { window.localStorage.setItem(MANIFESTO_KEY, "true"); } catch {}
+    setManifestoOpen(false);
+  }, []);
+  const openManifesto = useCallback(() => setManifestoOpen(true), []);
 
   // Dev mode
   const [devMode, setDevMode] = useState(false);
@@ -197,11 +216,11 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen pb-28 md:pb-12 animate-[fadein_300ms_ease-out] bg-white" dir="rtl">
-      <TopNav />
+      <TopNav onOpenManifesto={openManifesto} />
 
       {/* Mobile-only status chips (keeps streak/clock/score one tap away) */}
       <div className="md:hidden">
-        <Header streak={streak} score={score} clock={clockStr} />
+        <Header streak={streak} score={score} clock={clockStr} onOpenManifesto={openManifesto} />
       </div>
 
       {/* ───────────────────────── HERO: WHEEL + BUTTON ─────────────────────────
@@ -298,6 +317,8 @@ export default function GamePage() {
       )}
 
       <BottomNav />
+
+      <ManifestoModal open={manifestoOpen} onClose={closeManifesto} />
     </div>
   );
 }

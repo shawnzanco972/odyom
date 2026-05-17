@@ -46,7 +46,7 @@ export function OutcomeModal({
   // Inline color avoids any Tailwind JIT/cache miss on custom tokens.
   const bgColor = isSurvive ? "#C4EAB4" : "#FECACA";
   const accentBg = isSurvive ? "bg-[#106B01]" : "bg-[#DC2626]";
-  const ctaText = "מי עוד שרד?";
+  const ctaText = isSurvive ? "מי עוד שרד?" : "מי כן שרד?";
   const risk = riskForHour(hour);
 
   return (

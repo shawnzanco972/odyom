@@ -7,7 +7,7 @@ const LINKS = [
   { href: "/leaderboard", label: "טבלת המובילים", emoji: "🏆" },
 ];
 
-export function TopNav() {
+export function TopNav({ onOpenManifesto }: { onOpenManifesto?: () => void }) {
   const pathname = usePathname() ?? "/";
   return (
     <header
@@ -19,7 +19,7 @@ export function TopNav() {
           <span className="text-2xl">⚡</span>
           <span className="font-black text-2xl tracking-tight">לשרוד את היום</span>
         </Link>
-        <nav className="flex gap-2">
+        <nav className="flex gap-2 items-center">
           {LINKS.map(l => {
             const isActive = pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href));
             return (
@@ -38,6 +38,16 @@ export function TopNav() {
               </Link>
             );
           })}
+          {onOpenManifesto && (
+            <button
+              onClick={onOpenManifesto}
+              aria-label="איך משחקים"
+              title="איך משחקים?"
+              className="w-10 h-10 border-2 border-ink rounded-lg font-black text-lg bg-white shadow-[2px_2px_0_0_#0A0A0A] active:translate-x-[-2px] active:translate-y-[2px] active:shadow-none transition-transform"
+            >
+              ?
+            </button>
+          )}
         </nav>
       </div>
     </header>
