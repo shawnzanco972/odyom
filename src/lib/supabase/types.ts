@@ -98,25 +98,37 @@ export type Database = {
           id: number;
           text: string;
           type: string; // "survive" | "death"
-          time_slot: string | null; // "morning" | "noon" | "afternoon" | "night" | "general"
           status: string | null; // "pending" | "approved" | "rejected"
           created_at: string | null;
+          is_morning: boolean | null;
+          is_noon: boolean | null;
+          is_afternoon: boolean | null;
+          is_night: boolean | null;
+          is_general: boolean | null;
         };
         Insert: {
           id?: number;
           text: string;
           type: string;
-          time_slot?: string | null;
           status?: string | null;
           created_at?: string | null;
+          is_morning?: boolean | null;
+          is_noon?: boolean | null;
+          is_afternoon?: boolean | null;
+          is_night?: boolean | null;
+          is_general?: boolean | null;
         };
         Update: {
           id?: number;
           text?: string;
           type?: string;
-          time_slot?: string | null;
           status?: string | null;
           created_at?: string | null;
+          is_morning?: boolean | null;
+          is_noon?: boolean | null;
+          is_afternoon?: boolean | null;
+          is_night?: boolean | null;
+          is_general?: boolean | null;
         };
         Relationships: [];
       };
@@ -127,8 +139,12 @@ export type Database = {
           is_approved: boolean | null;
           suggested_by: string | null;
           text: string;
-          tier: number | null;
           type: string | null;
+          is_morning: boolean | null;
+          is_noon: boolean | null;
+          is_afternoon: boolean | null;
+          is_night: boolean | null;
+          is_general: boolean | null;
         };
         Insert: {
           created_at?: string;
@@ -136,8 +152,12 @@ export type Database = {
           is_approved?: boolean | null;
           suggested_by?: string | null;
           text: string;
-          tier?: number | null;
           type?: string | null;
+          is_morning?: boolean | null;
+          is_noon?: boolean | null;
+          is_afternoon?: boolean | null;
+          is_night?: boolean | null;
+          is_general?: boolean | null;
         };
         Update: {
           created_at?: string;
@@ -145,8 +165,12 @@ export type Database = {
           is_approved?: boolean | null;
           suggested_by?: string | null;
           text?: string;
-          tier?: number | null;
           type?: string | null;
+          is_morning?: boolean | null;
+          is_noon?: boolean | null;
+          is_afternoon?: boolean | null;
+          is_night?: boolean | null;
+          is_general?: boolean | null;
         };
         Relationships: [];
       };
@@ -289,8 +313,12 @@ export interface UserSuggestionRow {
   id: number;
   text: string;
   type: "survive" | "death";
-  tier: number | null;
   suggested_by: string | null;
   is_approved: boolean;
   created_at: string;
+  is_morning: boolean;
+  is_noon: boolean;
+  is_afternoon: boolean;
+  is_night: boolean;
+  is_general: boolean;
 }

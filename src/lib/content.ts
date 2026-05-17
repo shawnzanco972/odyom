@@ -2,32 +2,36 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./supabase/types";
 
 export type SentenceType = "survive" | "death";
-export type TimeSlot = "morning" | "noon" | "afternoon" | "night" | "general";
+export type TimeSlot = "morning" | "noon" | "afternoon" | "night";
 
-// Map IST hour → narrative time slot, 1:1 with the 4 buttons in the
-// suggestion form (בוקר / צהריים / אחה"צ / לילה):
-//   06:00–11:59 → morning   (בוקר)
-//   12:00–15:59 → noon      (צהריים)
-//   16:00–19:59 → afternoon (אחה"צ)
-//   20:00–05:59 → night     (לילה — wraps past midnight)
-// The game itself is locked before 08:00 IST so the early-AM night range is
-// rarely hit in production, but we keep the mapping complete for correctness.
-export function timeSlotForHour(h: number): Exclude<TimeSlot, "general"> {
-  if (h >= 6 && h < 12) return "morning";
-  if (h >= 12 && h < 16) return "noon";
-  if (h >= 16 && h < 20) return "afternoon";
-  return "night";
+/** Map IST hour → narrative slot (1:1 with the 4 suggestion-form buttons). */
+export function timeSlotForHour(h: number): TimeSlot {
+  if (h >= 6 && h < 12) return "morning";   // בוקר
+  if (h >= 12 && h < 16) return "noon";     // צהריים
+  if (h >= 16 && h < 20) return "afternoon"; // אחה"צ
+  return "night";                            // לילה (20:00–05:59, wraps)
+}
+
+/** DB boolean column name for a given slot. */
+function slotColumn(slot: TimeSlot): "is_morning" | "is_noon" | "is_afternoon" | "is_night" {
+  switch (slot) {
+    case "morning":   return "is_morning";
+    case "noon":      return "is_noon";
+    case "afternoon": return "is_afternoon";
+    case "night":     return "is_night";
+  }
 }
 
 /**
- * Anti-drought fallback chain for picking an approved sentence:
- *   1. exact time_slot match for the current hour
- *   2. fallback to time_slot='general' (the migrated historical pool)
- *   3. last resort: any approved sentence of this type, regardless of slot
+ * Anti-drought fallback chain. Boolean-column architecture:
+ *   1. Exact-slot OR is_general — sentences explicitly tagged for the
+ *      current time of day plus the always-available general pool.
+ *   2. is_general only — the migrated bulk pool, used when step 1 still
+ *      somehow returns nothing.
+ *   3. Any approved sentence of this type — last-resort failsafe so the
+ *      modal never renders an empty string.
  *
- * Performs at most 3 DB round-trips, short-circuits as soon as a row is
- * found. Returns a soft default string if every step misses (should never
- * happen once the table is seeded).
+ * Each step performs a count + range(offset, offset) random pick, O(1).
  */
 export async function pickReason(
   supabase: SupabaseClient<Database>,
@@ -35,38 +39,40 @@ export async function pickReason(
   hour: number,
 ): Promise<string> {
   const slot = timeSlotForHour(hour);
+  const col = slotColumn(slot);
 
-  // Step 1 — exact time-of-day match
-  const exact = await fetchRandomApproved(supabase, type, slot);
-  if (exact) return exact;
+  // Step 1 — slot match OR general
+  const step1 = await fetchRandomApproved(supabase, type, `${col}.eq.true,is_general.eq.true`);
+  if (step1) return step1;
 
-  // Step 2 — fall back to the 'general' pool (the migrated bulk content)
-  const general = await fetchRandomApproved(supabase, type, "general");
-  if (general) return general;
+  // Step 2 — general only
+  const step2 = await fetchRandomApproved(supabase, type, "is_general.eq.true");
+  if (step2) return step2;
 
-  // Step 3 — last-resort: anything approved of this type
-  const any = await fetchRandomApproved(supabase, type, null);
-  if (any) return any;
+  // Step 3 — any approved
+  const step3 = await fetchRandomApproved(supabase, type, null);
+  if (step3) return step3;
 
-  // Soft default — should not be reachable once table is seeded.
   return type === "survive"
     ? "שרדת עוד יום בישראל. לא ברור איך."
     : "מתת. לא ברור איך עוד היית כאן.";
 }
 
+/**
+ * @param orFilter `null` for no additional filter, or a comma-separated
+ *   .or()-compatible string (e.g., "is_morning.eq.true,is_general.eq.true").
+ */
 async function fetchRandomApproved(
   supabase: SupabaseClient<Database>,
   type: SentenceType,
-  slot: TimeSlot | null,
+  orFilter: string | null,
 ): Promise<string | null> {
-  // Count first so we can pick a random offset (Postgres ORDER BY random()
-  // is OK at our scale but quadratic — count+offset stays O(1) per pick).
   let countQuery = supabase
     .from("game_sentences")
     .select("id", { count: "exact", head: true })
     .eq("type", type)
     .eq("status", "approved");
-  if (slot !== null) countQuery = countQuery.eq("time_slot", slot);
+  if (orFilter !== null) countQuery = countQuery.or(orFilter);
   const { count } = await countQuery;
   if (!count || count === 0) return null;
 
@@ -76,7 +82,7 @@ async function fetchRandomApproved(
     .select("text")
     .eq("type", type)
     .eq("status", "approved");
-  if (slot !== null) pickQuery = pickQuery.eq("time_slot", slot);
+  if (orFilter !== null) pickQuery = pickQuery.or(orFilter);
   const { data } = await pickQuery.range(offset, offset).limit(1);
   return data?.[0]?.text ?? null;
 }
