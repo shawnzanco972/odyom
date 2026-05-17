@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { assignSlotPoints } from "@/lib/risk";
 
 export interface CardFlipProps {
   totalSlices: number;
@@ -8,15 +9,26 @@ export interface CardFlipProps {
   spin: boolean;
   onResolved: (o: "survive" | "death") => void;
   onPlay?: (chosenIndex: number) => void;
+  /** Server-assigned green slot values (length = totalSlices-1). */
+  slotPoints?: number[];
+  /** Value the chosen Ace should display on survive — matches server baseValue. */
+  baseValue?: number;
 }
 
-export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: CardFlipProps) {
+export function CardFlip({
+  totalSlices, outcome, spin, onResolved, onPlay, slotPoints, baseValue,
+}: CardFlipProps) {
   const [chosen, setChosen] = useState<number | null>(null);
   const [flipped, setFlipped] = useState<Set<number>>(new Set());
   const [revealChosen, setRevealChosen] = useState(false);
   const timeouts = useRef<number[]>([]);
 
   const surviveCount = Math.max(0, totalSlices - 1);
+
+  // Per-card green values. Falls back to a local shuffle when the server's
+  // slotPoints aren't here yet (idle preview).
+  const previewPoints = useMemo(() => assignSlotPoints(totalSlices), [totalSlices]);
+  const pointsPool = slotPoints ?? previewPoints;
 
   // Pre-pick the joker index the moment the user commits to a card. There is
   // ALWAYS exactly one joker — either it's the chosen card (death) or it's a
@@ -31,6 +43,25 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
     if (others.length === 0) return -1;
     return others[Math.floor(Math.random() * others.length)];
   }, [chosen, outcome, totalSlices]);
+
+  // Map each non-joker card index → green slot value. On survive, the chosen
+  // card is forced to `baseValue` so the displayed value matches the modal.
+  const cardValueByIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    if (chosen === null) return map;
+    let cursor = 0;
+    for (let i = 0; i < totalSlices; i++) {
+      if (i === jokerIndex) continue;
+      if (i === chosen && outcome === "survive" && typeof baseValue === "number") {
+        map.set(i, baseValue);
+        cursor++; // consume one pool slot for the chosen card
+        continue;
+      }
+      const v = pointsPool[cursor++];
+      if (typeof v === "number") map.set(i, v);
+    }
+    return map;
+  }, [chosen, jokerIndex, totalSlices, pointsPool, outcome, baseValue]);
 
   const handleClick = (i: number) => {
     if (chosen !== null || spin) return;
@@ -143,8 +174,13 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
                         <span className="self-start font-black text-[10px] md:text-xs text-[#106B01] leading-none">
                           🟢
                         </span>
-                        <span className="font-black text-2xl md:text-3xl text-[#106B01] leading-none">
-                          A
+                        <span className="flex flex-col items-center gap-0.5 leading-none">
+                          <span className="font-black text-xl md:text-2xl text-[#106B01]">A</span>
+                          {cardValueByIndex.has(i) && (
+                            <span className="font-black text-[10px] md:text-xs text-[#106B01] tabular-nums">
+                              ({cardValueByIndex.get(i)})
+                            </span>
+                          )}
                         </span>
                         <span className="self-end font-black text-[10px] md:text-xs text-[#106B01] leading-none rotate-180">
                           🟢

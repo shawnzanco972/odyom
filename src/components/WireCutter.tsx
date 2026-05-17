@@ -9,6 +9,9 @@ export interface WireCutterProps {
   spin: boolean;
   onResolved: (o: "survive" | "death") => void;
   onPlay?: (chosenIndex: number) => void;
+  /** Awarded points (baseValue + riskBonus) shown floating up over the
+   *  cut wire's terminal on survive. */
+  awardedPoints?: number;
 }
 
 type Panel = "T" | "R" | "B" | "L";
@@ -72,7 +75,9 @@ function PliersIcon({ size = 44, clamped = false }: { size?: number; clamped?: b
   );
 }
 
-export function WireCutter({ totalSlices, outcome, spin, onResolved, onPlay }: WireCutterProps) {
+export function WireCutter({
+  totalSlices, outcome, spin, onResolved, onPlay, awardedPoints,
+}: WireCutterProps) {
   const nodes = buildNodes(totalSlices);
   const safeCount = Math.max(0, Math.min(32, totalSlices) - 1);
 
@@ -524,6 +529,34 @@ export function WireCutter({ totalSlices, outcome, spin, onResolved, onPlay }: W
         >
           <PliersIcon size={44} clamped={clamp} />
         </div>
+
+        {/* Floating +N over the chosen wire's terminal node on survive */}
+        {coreState === "verdict" &&
+          outcome === "survive" &&
+          chosen !== null &&
+          typeof awardedPoints === "number" &&
+          awardedPoints > 0 &&
+          wireEnds[chosen] && (
+            <span
+              className="absolute pointer-events-none font-black text-2xl md:text-3xl text-[#106B01] z-30"
+              style={{
+                left: `${wireEnds[chosen].x}%`,
+                top: `${wireEnds[chosen].y}%`,
+                transform: "translate(-50%, -50%)",
+                animation: "wire-score-pop 1400ms ease-out forwards",
+                textShadow: "2px 2px 0 #ffffff",
+              }}
+            >
+              +{awardedPoints}
+            </span>
+          )}
+        <style jsx>{`
+          @keyframes wire-score-pop {
+            0%   { transform: translate(-50%, 0%)    scale(0.7); opacity: 0; }
+            15%  { transform: translate(-50%, -10%)  scale(1.05); opacity: 1; }
+            100% { transform: translate(-50%, -110%) scale(1);    opacity: 0; }
+          }
+        `}</style>
       </div>
     </div>
   );

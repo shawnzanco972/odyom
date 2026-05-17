@@ -19,6 +19,11 @@ export interface OutcomeModalProps {
   /** Which mini-game the user picked, so the result line reads
    *  "המשחק: גלגל הגורלות / קלפים / כוסות / חוטים". */
   gameMode: GameMode;
+  /** Scoring breakdown — survive only. All optional so the modal still
+   *  renders cleanly on replay where these may be missing. */
+  baseValue?: number;
+  riskBonus?: number;
+  awardedPoints?: number;
   /** UUID of the current user — embedded in share URLs to seed the rescue loop. */
   userId: string | null;
   onProfile: () => void;
@@ -45,6 +50,9 @@ export function OutcomeModal({
   score,
   ballsDropped,
   gameMode,
+  baseValue,
+  riskBonus,
+  awardedPoints,
   userId,
   onProfile,
   onLeaderboard,
@@ -114,6 +122,21 @@ export function OutcomeModal({
             {reasonText}
           </p>
           <div className="border-t-2 border-ink my-2.5" />
+          {/* Points breakdown — survive only, when we have the numbers */}
+          {isSurvive &&
+            typeof baseValue === "number" &&
+            typeof riskBonus === "number" &&
+            typeof awardedPoints === "number" &&
+            awardedPoints > 0 && (
+              <p className="text-center font-black text-sm tabular-nums mb-2.5">
+                🎯 {baseValue}
+                <span className="mx-1 text-gray-concrete">+</span>
+                ⚡ {riskBonus}
+                <span className="mx-1 text-gray-concrete">=</span>
+                <span className="text-[#106B01]">+{awardedPoints}</span>
+                <span className="text-[10px] text-gray-concrete font-bold mr-1">נק׳</span>
+              </p>
+            )}
           <div className="flex justify-around items-baseline">
             <div className="text-center">
               <div className="font-black text-2xl">🔥 {streak}</div>

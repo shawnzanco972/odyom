@@ -8,11 +8,17 @@ export interface CupsGameProps {
   spin: boolean;
   onResolved: (o: "survive" | "death") => void;
   onPlay?: (chosenIndex: number) => void;
+  /** Slot value shown inside the chosen cup's ball on survive. */
+  baseValue?: number;
+  /** Risk-bonus-inclusive amount shown floating up over the chosen cup. */
+  awardedPoints?: number;
 }
 
 type Stage = "idle" | "shake" | "lift";
 
-export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: CupsGameProps) {
+export function CupsGame({
+  totalSlices, outcome, spin, onResolved, onPlay, baseValue, awardedPoints,
+}: CupsGameProps) {
   const [chosen, setChosen] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const timeouts = useRef<number[]>([]);
@@ -60,6 +66,11 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
           25% { transform: translateX(-2px) rotate(-1deg); }
           75% { transform: translateX(2px) rotate(1deg); }
         }
+        @keyframes score-pop {
+          0%   { transform: translate(-50%, 0)    scale(0.7); opacity: 0; }
+          15%  { transform: translate(-50%, -10px) scale(1.05); opacity: 1; }
+          100% { transform: translate(-50%, -60px) scale(1);    opacity: 0; }
+        }
       `}</style>
       <div
         className="w-full bg-white border-[3px] border-[#0A0A0A] shadow-[6px_6px_0_0_#0A0A0A] p-3"
@@ -101,10 +112,29 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
                       justifyContent: "center",
                       fontWeight: 900,
                       color: "#fff",
+                      fontSize: "1.4rem",
                     }}
                   >
-                    {isTrap ? "💀" : ""}
+                    {isTrap
+                      ? "💀"
+                      : isChosen && typeof baseValue === "number"
+                        ? baseValue
+                        : ""}
                   </div>
+                )}
+                {/* Floating +N over the chosen cup on survive reveal */}
+                {reveal && isChosen && !isTrap && typeof awardedPoints === "number" && awardedPoints > 0 && (
+                  <span
+                    className="absolute pointer-events-none font-black text-xl md:text-2xl text-[#106B01]"
+                    style={{
+                      bottom: "70%",
+                      left: "50%",
+                      animation: "score-pop 1100ms ease-out forwards",
+                      textShadow: "2px 2px 0 #ffffff",
+                    }}
+                  >
+                    +{awardedPoints}
+                  </span>
                 )}
                 {/* cup */}
                 <div

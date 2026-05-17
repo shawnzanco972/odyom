@@ -7,6 +7,12 @@ import {
 } from "@/lib/time";
 import { pickReason } from "@/lib/content";
 import { madnessTagForStreak } from "@/lib/madness";
+import {
+  assignSlotPoints,
+  intervalIndexFromBalls,
+  prunedPool,
+  riskBonusFromT,
+} from "@/lib/risk";
 import { getServerClient } from "@/lib/supabase/server";
 import { normalizeUserRow } from "@/lib/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,7 +27,13 @@ export interface VerdictResponse {
   totalSlices: number;
   replay: boolean;
   streak: number;
-  score: number;
+  score: number;             // user.total_score AFTER this play
+  // 1-to-1 Progressive Pruning + Risk Bonus
+  baseValue: number;         // slot value before risk bonus (0 on death)
+  riskBonus: number;         // R(t)
+  awardedPoints: number;     // baseValue + riskBonus (0 on death)
+  slotPoints: number[];      // length S_open; values on green slots in canvas order
+  winningGreenIndex: number; // 0..S_open-1; -1 on death
 }
 
 // Server-only flag — must be explicitly enabled per env. NODE_ENV check is a
@@ -82,6 +94,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
     if (isExplicitAttempt) {
       return NextResponse.json({ error: "locked" }, { status: 403 });
     }
+    // Best-effort: look up today's play row so the modal can show what they
+    // actually scored on refresh. Fall back to 0 if for some reason the
+    // history row is missing.
+    const { data: todayPlay } = await supabase
+      .from("plays")
+      .select("points_earned")
+      .eq("user_id", user.id)
+      .eq("played_date", todayKey)
+      .order("played_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const replayAwarded = todayPlay?.points_earned ?? 0;
+    const replayT = intervalIndexFromBalls(state.ballsDropped);
     return NextResponse.json({
       outcome: userRow.last_outcome!,
       reasonText: userRow.last_reason!,
@@ -90,6 +115,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
       replay: true,
       streak: userRow.current_streak,
       score: userRow.total_score,
+      baseValue: Math.max(0, replayAwarded - riskBonusFromT(replayT)),
+      riskBonus: riskBonusFromT(replayT),
+      awardedPoints: replayAwarded,
+      slotPoints: prunedPool(state.ballsDropped),
+      winningGreenIndex: -1,
     });
   }
 
@@ -114,10 +144,20 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
   const isFirstEverPlay = !userRow.has_played_ever;
   const isDeath = outcome === "death";
 
+  // 1-to-1 Progressive Pruning + Risk Bonus
+  const t = intervalIndexFromBalls(state.ballsDropped);
+  const slotPoints = assignSlotPoints(state.ballsDropped);
+  const winningGreenIndex = isDeath
+    ? -1
+    : Math.floor(Math.random() * slotPoints.length);
+  const baseValue = isDeath ? 0 : slotPoints[winningGreenIndex];
+  const riskBonus = riskBonusFromT(t);
+  const awardedPoints = isDeath ? 0 : baseValue + riskBonus;
+
   // Computed-but-not-yet-persisted values. Always returned in the response
   // so the UI can preview the result even when dev mode skips the DB write.
   const newStreak = isDeath ? 0 : userRow.current_streak + 1;
-  const newScore = userRow.total_score + (isDeath ? 0 : 10 + (32 - state.ballsDropped));
+  const newScore = userRow.total_score + awardedPoints;
 
   // Dev mode is a true sandbox: NO writes to users, NO play row, NO rescue.
   // The response still carries newStreak/newScore so the modal renders the
@@ -161,6 +201,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
       reason: reasonText,
       total_slices: state.ballsDropped,
       streak_at_play: newStreak,
+      points_earned: awardedPoints,
     });
 
     if (isFirstEverPlay && userRow.referrer_id) {
@@ -176,6 +217,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
     replay: false,
     streak: newStreak,
     score: newScore,
+    baseValue,
+    riskBonus,
+    awardedPoints,
+    slotPoints,
+    winningGreenIndex,
   });
 }
 

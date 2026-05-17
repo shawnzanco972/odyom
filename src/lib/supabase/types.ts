@@ -67,6 +67,7 @@ export type Database = {
           reason: string;
           total_slices: number;
           streak_at_play: number;
+          points_earned: number;
         };
         Insert: {
           id?: never;
@@ -77,6 +78,7 @@ export type Database = {
           reason: string;
           total_slices: number;
           streak_at_play: number;
+          points_earned?: number;
         };
         Update: {
           id?: never;
@@ -87,6 +89,7 @@ export type Database = {
           reason?: string;
           total_slices?: number;
           streak_at_play?: number;
+          points_earned?: number;
         };
         Relationships: [];
       };
@@ -279,6 +282,7 @@ export interface PlayRow {
   reason: string;
   total_slices: number;
   streak_at_play: number;
+  points_earned: number;
 }
 
 export interface UserSuggestionRow {

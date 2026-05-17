@@ -278,6 +278,8 @@ export default function GamePage() {
                 outcome={verdict?.outcome ?? "survive"}
                 spin={phase === "spinning" && spinArmedRef.current}
                 onResolved={handleResolved}
+                slotPoints={verdict?.slotPoints}
+                winningGreenIndex={verdict?.winningGreenIndex}
               />
             )}
             {activeGameMode === "cards" && (
@@ -287,6 +289,8 @@ export default function GamePage() {
                 spin={phase === "spinning" && spinArmedRef.current}
                 onResolved={handleResolved}
                 onPlay={handleSpin}
+                slotPoints={verdict?.slotPoints}
+                baseValue={verdict?.baseValue}
               />
             )}
             {activeGameMode === "cups" && (
@@ -296,6 +300,8 @@ export default function GamePage() {
                 spin={phase === "spinning" && spinArmedRef.current}
                 onResolved={handleResolved}
                 onPlay={handleSpin}
+                baseValue={verdict?.baseValue}
+                awardedPoints={verdict?.awardedPoints}
               />
             )}
             {activeGameMode === "wires" && (
@@ -305,6 +311,7 @@ export default function GamePage() {
                 spin={phase === "spinning" && spinArmedRef.current}
                 onResolved={handleResolved}
                 onPlay={handleSpin}
+                awardedPoints={verdict?.awardedPoints}
               />
             )}
           </div>
@@ -361,6 +368,9 @@ export default function GamePage() {
           score={score}
           ballsDropped={slotState.ballsDropped}
           gameMode={activeGameMode}
+          baseValue={verdict?.baseValue}
+          riskBonus={verdict?.riskBonus}
+          awardedPoints={verdict?.awardedPoints}
           userId={session?.user?.id ?? null}
           onProfile={() => {
             setModalOpen(false);

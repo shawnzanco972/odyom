@@ -1,11 +1,18 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { assignSlotPoints } from "@/lib/risk";
 
 export interface RouletteWheelProps {
   totalSlices: number;
   outcome: "survive" | "death";
   spin: boolean;
   onResolved: (outcome: "survive" | "death") => void;
+  /** Server-assigned values for the green slots in canvas order (length = totalSlices-1).
+   *  When omitted (pre-spin), the component generates a local preview. */
+  slotPoints?: number[];
+  /** Server-chosen winning green slot index (0..S_open-1). When provided the
+   *  wheel brakes deterministically on slice `winningGreenIndex + 1`. */
+  winningGreenIndex?: number;
 }
 
 const SPIN_DURATION_MS = 4500;
@@ -19,12 +26,27 @@ const DIVIDER_WIDTH = 3;
 const FRAME_WIDTH = 6;
 const TEETH_COUNT = 36;
 
-export function RouletteWheel({ totalSlices, outcome, spin, onResolved }: RouletteWheelProps) {
+export function RouletteWheel({
+  totalSlices,
+  outcome,
+  spin,
+  onResolved,
+  slotPoints,
+  winningGreenIndex,
+}: RouletteWheelProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rotationRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const spinningRef = useRef(false);
+
+  // Use the server-provided assignment when available, otherwise generate a
+  // local preview that's stable per totalSlices so the wheel always shows
+  // values pre-spin.
+  const previewPoints = useMemo(() => assignSlotPoints(totalSlices), [totalSlices]);
+  const points = slotPoints ?? previewPoints;
+  const pointsRef = useRef<number[]>(points);
+  pointsRef.current = points;
 
   const draw = (n: number) => {
     const canvas = canvasRef.current;
@@ -73,6 +95,27 @@ export function RouletteWheel({ totalSlices, outcome, spin, onResolved }: Roulet
       ctx.lineWidth = DIVIDER_WIDTH;
       ctx.strokeStyle = COLOR_INK;
       ctx.stroke();
+
+      // Slot value label — drawn rotated along each slice's radial axis so
+      // it reads outwards from the centre. Slice 0 (red) shows 💀.
+      const midAngle = start + arc / 2;
+      const labelR = wheelR * 0.62;
+      ctx.save();
+      ctx.translate(Math.cos(midAngle) * labelR, Math.sin(midAngle) * labelR);
+      // Orient text radially (pointing outwards from the centre).
+      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const sliceSize = Math.min(20, Math.max(9, (wheelR * arc) * 0.32));
+      ctx.font = `900 ${sliceSize}px Rubik, system-ui, sans-serif`;
+      if (i === 0) {
+        ctx.fillText("💀", 0, 0);
+      } else {
+        const value = pointsRef.current[i - 1];
+        if (typeof value === "number") ctx.fillText(String(value), 0, 0);
+      }
+      ctx.restore();
     }
 
     // Gear teeth around the rim (rotate with the wheel)
@@ -168,15 +211,21 @@ export function RouletteWheel({ totalSlices, outcome, spin, onResolved }: Roulet
   // Repaint on prop change when idle.
   useEffect(() => {
     if (!spinningRef.current) draw(totalSlices);
-  }, [totalSlices, outcome]);
+  }, [totalSlices, outcome, points]);
 
   // Deterministic spin
   useEffect(() => {
     if (!spin || spinningRef.current) return;
     spinningRef.current = true;
 
+    // Deterministic landing when the server has picked a winning green slot.
+    // Falls back to the original random pick (legacy / dev preview).
     const targetSliceIndex =
-      outcome === "death" ? 0 : 1 + Math.floor(Math.random() * Math.max(1, totalSlices - 1));
+      outcome === "death"
+        ? 0
+        : typeof winningGreenIndex === "number" && winningGreenIndex >= 0
+          ? winningGreenIndex + 1
+          : 1 + Math.floor(Math.random() * Math.max(1, totalSlices - 1));
 
     // Slice-bounded jitter — lands within 15%–85% across the target slice,
     // guaranteed to stay inside that slice and never spill into a neighbour.
