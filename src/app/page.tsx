@@ -100,14 +100,19 @@ export default function GamePage() {
   const todayKey = useMemo(() => todayKeyIST(now), [now]);
   const unlockAt = useMemo(() => nextUnlock(now), [now]);
 
-  const streak = userRow?.current_streak ?? 0;
-  const score = userRow?.total_score ?? 0;
   const alreadyPlayedToday = !devMode && userRow?.last_played_date === todayKey;
   const initialLocked = slotState.locked || alreadyPlayedToday;
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [activeGameMode, setActiveGameMode] = useState<GameMode>("wheel");
   const [verdict, setVerdict] = useState<VerdictResponse | null>(null);
+
+  // In dev mode the verdict route doesn't persist, so `userRow` won't reflect
+  // the just-spun score. Prefer the verdict response's computed totals for
+  // display whenever they're available so the UI honestly shows "what would
+  // have happened" without polluting the database.
+  const streak = verdict?.streak ?? userRow?.current_streak ?? 0;
+  const score = verdict?.score ?? userRow?.total_score ?? 0;
   const [modalOpen, setModalOpen] = useState(false);
   const [judgementAt, setJudgementAt] = useState<Date | null>(null);
   const [displayOutcome, setDisplayOutcome] = useState<"survive" | "death" | null>(null);
@@ -386,6 +391,13 @@ export default function GamePage() {
           mockHour={mockHour}
           setMockHour={setMockHour}
           onResetLockout={() => { /* dev mode bypasses lockout server-side */ }}
+          onWiped={() => {
+            setVerdict(null);
+            setDisplayOutcome(null);
+            setDisplayReason("");
+            setModalOpen(false);
+            void refetch();
+          }}
         />
       )}
 

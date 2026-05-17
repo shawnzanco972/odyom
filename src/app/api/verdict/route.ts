@@ -109,35 +109,28 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
   const isFirstEverPlay = !userRow.has_played_ever;
   const isDeath = outcome === "death";
 
-  let newStreak = isDeath ? 0 : userRow.current_streak + 1;
-  let newScore = userRow.total_score + (isDeath ? 0 : 10 + (32 - state.ballsDropped));
-  const newHighest = Math.max(userRow.highest_streak, newStreak);
-  const newSeen = userRow.seen_reasons.includes(reasonText)
-    ? userRow.seen_reasons
-    : [...userRow.seen_reasons, reasonText];
+  // Computed-but-not-yet-persisted values. Always returned in the response
+  // so the UI can preview the result even when dev mode skips the DB write.
+  const newStreak = isDeath ? 0 : userRow.current_streak + 1;
+  const newScore = userRow.total_score + (isDeath ? 0 : 10 + (32 - state.ballsDropped));
 
-  // Snapshot the streak the moment it breaks so a friend can rescue it.
-  const streakBeforeLastDeath =
-    isDeath && userRow.current_streak > 0
-      ? userRow.current_streak
-      : userRow.streak_before_last_death;
+  // Dev mode is a true sandbox: NO writes to users, NO play row, NO rescue.
+  // The response still carries newStreak/newScore so the modal renders the
+  // computed deltas without polluting the leaderboard or daily-play state.
+  if (!dev) {
+    const newHighest = Math.max(userRow.highest_streak, newStreak);
+    const newSeen = userRow.seen_reasons.includes(reasonText)
+      ? userRow.seen_reasons
+      : [...userRow.seen_reasons, reasonText];
+    // Snapshot the streak the moment it breaks so a friend can rescue it.
+    const streakBeforeLastDeath =
+      isDeath && userRow.current_streak > 0
+        ? userRow.current_streak
+        : userRow.streak_before_last_death;
 
-  // In dev mode we persist score/streak/history/plays so the dev panel
-  // experience matches real gameplay — BUT we skip the lockout-related
-  // fields (last_played_date / last_outcome / last_reason) so the user can
-  // keep re-spinning without burning the daily play.
-  const updatePayload = dev
-    ? {
-        total_score: newScore,
-        current_streak: newStreak,
-        highest_streak: newHighest,
-        madness_tag: madnessTagForStreak(newStreak),
-        seen_reasons: newSeen,
-        last_played_at: now.toISOString(),
-        has_played_ever: true,
-        streak_before_last_death: streakBeforeLastDeath,
-      }
-    : {
+    const { error: updateErr } = await supabase
+      .from("users")
+      .update({
         total_score: newScore,
         current_streak: newStreak,
         highest_streak: newHighest,
@@ -149,20 +142,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
         last_reason: reasonText,
         has_played_ever: true,
         streak_before_last_death: streakBeforeLastDeath,
-      };
+      })
+      .eq("id", user.id);
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
 
-  const { error: updateErr } = await supabase
-    .from("users")
-    .update(updatePayload)
-    .eq("id", user.id);
-  if (updateErr) {
-    return NextResponse.json({ error: updateErr.message }, { status: 500 });
-  }
-
-  // Append to per-play history (profile page reads this). Self-insert RLS
-  // enforces user_id = auth.uid(). Best-effort: don't fail the verdict if
-  // history write somehow errors.
-  {
     await supabase.from("plays").insert({
       user_id: user.id,
       played_at: now.toISOString(),
@@ -173,8 +158,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
       streak_at_play: newStreak,
     });
 
-    // Trigger streak rescue for the referrer the FIRST time this user plays.
-    // Any first play (survive or death) triggers it — pure viral loop.
     if (isFirstEverPlay && userRow.referrer_id) {
       await rescueReferrer(supabase, userRow.referrer_id);
     }
