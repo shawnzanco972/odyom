@@ -11,6 +11,8 @@ import { WelcomeGoogleButton } from "@/components/WelcomeGoogleButton";
 import { BottomNav } from "@/components/BottomNav";
 import { TopNav } from "@/components/TopNav";
 import { ManifestoModal } from "@/components/ManifestoModal";
+import { RescueModal } from "@/components/RescueModal";
+import { LinkGoogleButton } from "@/components/LinkGoogleButton";
 import {
   LiveFeed,
   NextWheelCountdown,
@@ -38,7 +40,7 @@ const MANIFESTO_KEY = "has_seen_manifesto";
 
 export default function GamePage() {
   const router = useRouter();
-  const { userRow, loading: authLoading, refetch } = useUser();
+  const { session, userRow, loading: authLoading, refetch } = useUser();
 
   // Hydration-safe intro gate
   const [mounted, setMounted] = useState(false);
@@ -129,13 +131,20 @@ export default function GamePage() {
     setJudgementAt(new Date());
     setPhase("requesting");
     try {
-      const qs = new URLSearchParams();
+      // `attempt=true` signals an explicit user spin click — server returns
+      // 403 (not a replay payload) if the user is locked out for the day.
+      const qs = new URLSearchParams({ attempt: "true" });
       if (devMode) qs.set("dev", "true");
       if (devMode && forceOutcome) qs.set("force", forceOutcome);
       if (devMode && mockHour !== null) qs.set("hour", String(mockHour));
-      const res = await fetch(`/api/verdict${qs.toString() ? "?" + qs : ""}`, {
-        method: "POST",
-      });
+      const res = await fetch(`/api/verdict?${qs}`, { method: "POST" });
+      if (res.status === 403) {
+        // Locked out — refresh user row so the page reflects the lock state
+        // and the auto-show effect opens the replay modal.
+        await refetch();
+        setPhase("locked");
+        return;
+      }
       if (!res.ok) throw new Error("verdict failed");
       const v: VerdictResponse = await res.json();
       setVerdict(v);
@@ -151,7 +160,7 @@ export default function GamePage() {
     } catch {
       setPhase("idle");
     }
-  }, [phase, devMode, forceOutcome, mockHour]);
+  }, [phase, devMode, forceOutcome, mockHour, refetch]);
 
   const handleResolved = useCallback(
     (actualOutcome: "survive" | "death") => {
@@ -269,6 +278,11 @@ export default function GamePage() {
         </BrutalButton>
       </section>
 
+      {/* Anonymous → Google upgrade prompt (only renders when user is anon) */}
+      <div className="max-w-md mx-auto px-4 mt-2">
+        <LinkGoogleButton />
+      </div>
+
       {/* Visual divider between hero and secondary widgets */}
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         <div className="border-t-4 border-ink/80 my-6" />
@@ -297,14 +311,23 @@ export default function GamePage() {
           hour={mockHour ?? istHour(judgementAt)}
           streak={streak}
           score={score}
-          onPrimary={() => {
+          userId={session?.user?.id ?? null}
+          onLeaderboard={() => {
             setModalOpen(false);
             setPhase(devMode ? "idle" : "locked");
             router.push("/leaderboard");
           }}
-          onSecondary={() => { setModalOpen(false); setPhase(devMode ? "idle" : "locked"); }}
+          onClose={() => { setModalOpen(false); setPhase(devMode ? "idle" : "locked"); }}
         />
       )}
+
+      {/* Streak rescue celebration — fires when a friend's first play
+          resurrects the user's streak. Renders above the outcome modal so the
+          good news lands first. */}
+      <RescueModal
+        open={!!userRow?.rescue_pending}
+        onAcknowledged={() => void refetch()}
+      />
 
       {devMode && (
         <DevPanel

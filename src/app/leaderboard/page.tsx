@@ -17,7 +17,7 @@ export default async function LeaderboardPage() {
 
   const { data: rows } = await supabase
     .from("users")
-    .select("id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_at, last_played_date, last_reason, seen_reasons")
+    .select("id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_at, last_played_date, last_reason, seen_reasons, referrer_id, streak_before_last_death, rescue_pending, has_played_ever")
     .order("total_score", { ascending: false })
     .order("highest_streak", { ascending: false })
     .limit(50);

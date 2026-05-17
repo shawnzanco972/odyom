@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import type { Session } from "@supabase/supabase-js";
 import { getBrowserClient } from "@/lib/supabase/browser";
 import { normalizeUserRow, type UserRow } from "@/lib/supabase/types";
+import { captureReferral, consumePendingReferral } from "@/lib/referral";
 
 interface AuthContextValue {
   session: Session | null;
@@ -41,6 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    // Capture ?ref=<uuid> from the URL before any auth work happens, so it
+    // survives the OAuth round-trip (in-app browsers like WhatsApp lose
+    // sessionStorage during external redirects — referral.ts uses localStorage).
+    captureReferral();
+
     // No client available (env vars missing) — stay un-authed silently so the
     // rest of the app still renders. Game state will just be ephemeral.
     if (!supabase) { setLoading(false); return; }
@@ -49,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const { data: { session: existing } } = await supabase.auth.getSession();
       let s = existing;
+      let isFreshSignup = false;
       if (!s) {
         const { data, error } = await supabase.auth.signInAnonymously();
         if (error) {
@@ -57,9 +64,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         s = data.session;
+        isFreshSignup = true;
       }
       setSession(s);
-      if (s?.user) await loadUserRow(s.user.id);
+
+      if (s?.user) {
+        // For fresh signups, persist a pending referrer (if any) onto the new
+        // users row. This must run after the trigger has created the row — the
+        // `loadUserRow` retry handles that timing implicitly.
+        if (isFreshSignup) {
+          const ref = consumePendingReferral();
+          if (ref && ref !== s.user.id) {
+            await supabase
+              .from("users")
+              .update({ referrer_id: ref })
+              .eq("id", s.user.id);
+          }
+        }
+        await loadUserRow(s.user.id);
+      }
       setLoading(false);
 
       const sub = supabase.auth.onAuthStateChange((_event, newSession) => {

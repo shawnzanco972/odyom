@@ -45,7 +45,7 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
       dir="rtl"
       className="bg-bgsoft border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A] p-4 mb-5 font-rubik"
     >
-      <div className="font-black mb-1">אל תאבד את הרצף!</div>
+      <div className="font-black mb-1">⚠️ אל תאבד את הסטריק שלך!</div>
       <p className="text-sm text-gray-concrete font-bold mb-3">
         חבר את החשבון ל-Google כדי לשמור את הרצף ולשחק מכל מכשיר.
       </p>

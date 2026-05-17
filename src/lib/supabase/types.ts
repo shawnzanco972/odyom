@@ -45,6 +45,7 @@ export type Database = {
       users: {
         Row: {
           current_streak: number | null;
+          has_played_ever: boolean | null;
           highest_streak: number | null;
           id: string;
           last_outcome: string | null;
@@ -53,12 +54,16 @@ export type Database = {
           last_reason: string | null;
           madness_tag: string | null;
           nickname: string | null;
+          referrer_id: string | null;
+          rescue_pending: boolean | null;
           seen_reasons: string[] | null;
+          streak_before_last_death: number | null;
           total_score: number | null;
           username: string | null;
         };
         Insert: {
           current_streak?: number | null;
+          has_played_ever?: boolean | null;
           highest_streak?: number | null;
           id: string;
           last_outcome?: string | null;
@@ -67,12 +72,16 @@ export type Database = {
           last_reason?: string | null;
           madness_tag?: string | null;
           nickname?: string | null;
+          referrer_id?: string | null;
+          rescue_pending?: boolean | null;
           seen_reasons?: string[] | null;
+          streak_before_last_death?: number | null;
           total_score?: number | null;
           username?: string | null;
         };
         Update: {
           current_streak?: number | null;
+          has_played_ever?: boolean | null;
           highest_streak?: number | null;
           id?: string;
           last_outcome?: string | null;
@@ -81,7 +90,10 @@ export type Database = {
           last_reason?: string | null;
           madness_tag?: string | null;
           nickname?: string | null;
+          referrer_id?: string | null;
+          rescue_pending?: boolean | null;
           seen_reasons?: string[] | null;
+          streak_before_last_death?: number | null;
           total_score?: number | null;
           username?: string | null;
         };
@@ -109,6 +121,10 @@ export interface UserRow {
   last_played_date: string | null;
   last_outcome: "survive" | "death" | null;
   last_reason: string | null;
+  referrer_id: string | null;
+  streak_before_last_death: number | null;
+  rescue_pending: boolean;
+  has_played_ever: boolean;
 }
 
 // Apply Postgres defaults so the app can treat the row as fully populated.
@@ -127,6 +143,10 @@ export function normalizeUserRow(r: RawUserRow): UserRow {
     last_outcome:
       r.last_outcome === "survive" || r.last_outcome === "death" ? r.last_outcome : null,
     last_reason: r.last_reason,
+    referrer_id: r.referrer_id,
+    streak_before_last_death: r.streak_before_last_death,
+    rescue_pending: r.rescue_pending ?? false,
+    has_played_ever: r.has_played_ever ?? false,
   };
 }
 

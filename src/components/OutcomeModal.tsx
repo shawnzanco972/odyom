@@ -1,6 +1,7 @@
 "use client";
 import { BrutalButton } from "./BrutalButton";
 import { LinkGoogleButton } from "./LinkGoogleButton";
+import { ShareButton } from "./ShareButton";
 
 export interface OutcomeModalProps {
   outcome: "survive" | "death";
@@ -10,8 +11,10 @@ export interface OutcomeModalProps {
   hour: number;
   streak: number;
   score: number;
-  onPrimary: () => void;
-  onSecondary: () => void;
+  /** UUID of the current user — embedded in share URLs to seed the rescue loop. */
+  userId: string | null;
+  onLeaderboard: () => void;
+  onClose: () => void;
 }
 
 type RiskTier = { label: string; fraction: string };
@@ -39,14 +42,14 @@ export function OutcomeModal({
   hour,
   streak,
   score,
-  onPrimary,
-  onSecondary,
+  userId,
+  onLeaderboard,
+  onClose,
 }: OutcomeModalProps) {
   const isSurvive = outcome === "survive";
   // Inline color avoids any Tailwind JIT/cache miss on custom tokens.
   const bgColor = isSurvive ? "#C4EAB4" : "#FECACA";
   const accentBg = isSurvive ? "bg-[#106B01]" : "bg-[#DC2626]";
-  const ctaText = isSurvive ? "מי עוד שרד?" : "מי כן שרד?";
   const risk = riskForHour(hour);
 
   return (
@@ -122,13 +125,21 @@ export function OutcomeModal({
           </span>
         </div>
 
-        {/* Primary CTA */}
+        {/* Primary CTA — share is the loudest action so the viral loop kicks in */}
+        <ShareButton
+          outcome={outcome}
+          streak={streak}
+          reason={reasonText}
+          referrerId={userId}
+          className="w-full max-w-sm mb-3"
+        />
+
+        {/* Secondary: leaderboard link */}
         <button
-          onClick={onPrimary}
-          className={`w-full max-w-sm ${accentBg} text-white border-[3px] border-ink rounded-lg py-4 px-6 font-black text-xl shadow-[6px_6px_0_0_#0A0A0A] active:translate-x-[-6px] active:translate-y-[6px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-3 mb-3`}
+          onClick={onLeaderboard}
+          className="font-bold text-base text-ink underline hover:text-[#106B01] transition-colors mb-4"
         >
-          {ctaText}
-          <span aria-hidden>🏆</span>
+          {isSurvive ? "מי עוד שרד?" : "מי כן שרד?"} →
         </button>
 
         {/* Google linkage banner — both outcomes (preserves streak across devices) */}
@@ -152,7 +163,7 @@ export function OutcomeModal({
 
         {/* Secondary "back to main" underlined link */}
         <button
-          onClick={onSecondary}
+          onClick={onClose}
           className="font-bold text-base text-ink underline hover:text-[#106B01] transition-colors"
         >
           חזור למסך הראשי

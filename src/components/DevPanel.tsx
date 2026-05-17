@@ -23,6 +23,9 @@ export function DevPanel({
       <span className="font-black uppercase tracking-wider text-xs bg-ink text-yellow-200 px-2 py-1">
         DEV
       </span>
+      <span className="text-[10px] text-gray-700">
+        Overrides only honored in non-prod builds.
+      </span>
 
       <button
         onClick={onResetLockout}
