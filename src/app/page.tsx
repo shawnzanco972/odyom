@@ -2,51 +2,52 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { BrutalButton } from "@/components/BrutalButton";
 import { Header } from "@/components/Header";
 import { OutcomeModal } from "@/components/OutcomeModal";
 import { DevPanel, type ForceOutcome } from "@/components/DevPanel";
+import { WelcomeGoogleButton } from "@/components/WelcomeGoogleButton";
+import { BottomNav } from "@/components/BottomNav";
+import { useUser } from "@/components/AuthProvider";
 import {
   activeSlots,
   activeSlotsForHour,
-  closedSlotIndices,
   istHour,
   nextUnlock,
   todayKeyIST,
 } from "@/lib/time";
 import type { VerdictResponse } from "./api/verdict/route";
 
-const Pegboard = dynamic(
-  () => import("@/components/Pegboard").then(m => m.Pegboard),
+const RouletteWheel = dynamic(
+  () => import("@/components/RouletteWheel").then(m => m.RouletteWheel),
   { ssr: false },
 );
 
-type Phase = "idle" | "requesting" | "dropping" | "resolved" | "locked";
-
-interface PersistedState {
-  lastPlayedDate: string | null;
-  streak: number;
-  score: number;
-  lastOutcome: "survive" | "death" | null;
-}
-
-const STORAGE_KEY = "odyom.state.v1";
-
-function loadPersisted(): PersistedState {
-  if (typeof window === "undefined")
-    return { lastPlayedDate: null, streak: 0, score: 0, lastOutcome: null };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as PersistedState;
-  } catch {}
-  return { lastPlayedDate: null, streak: 0, score: 0, lastOutcome: null };
-}
-
-function savePersisted(s: PersistedState) {
-  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
-}
+type Phase = "idle" | "requesting" | "spinning" | "resolved" | "locked";
+const INTRO_KEY = "has_seen_intro";
 
 export default function GamePage() {
+  const router = useRouter();
+  const { userRow, loading: authLoading, refetch } = useUser();
+
+  // --- Hydration-safe intro gate ---
+  // `mounted` flips true only after the first client-side useEffect runs, so
+  // returning visitors never flash the intro screen during SSR hydration.
+  const [mounted, setMounted] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.localStorage.getItem(INTRO_KEY)) {
+      setShowIntro(false);
+    }
+    setMounted(true);
+  }, []);
+
+  const dismissIntro = useCallback(() => {
+    try { window.localStorage.setItem(INTRO_KEY, "true"); } catch {}
+    setShowIntro(false);
+  }, []);
+
   // Dev mode
   const [devMode, setDevMode] = useState(false);
   const [forceOutcome, setForceOutcome] = useState<ForceOutcome>("");
@@ -70,32 +71,43 @@ export default function GamePage() {
   const todayKey = useMemo(() => todayKeyIST(now), [now]);
   const unlockAt = useMemo(() => nextUnlock(now), [now]);
 
-  // Persistence
-  const [persisted, setPersisted] = useState<PersistedState>(() => loadPersisted());
-  useEffect(() => { setPersisted(loadPersisted()); }, []);
-  const alreadyPlayedToday = persisted.lastPlayedDate === todayKey;
-  const initialLocked = !devMode && (slotState.locked || alreadyPlayedToday);
+  const streak = userRow?.current_streak ?? 0;
+  const score = userRow?.total_score ?? 0;
+  const alreadyPlayedToday = !devMode && userRow?.last_played_date === todayKey;
+  const initialLocked = slotState.locked || alreadyPlayedToday;
 
-  // Game state
-  const [phase, setPhase] = useState<Phase>(initialLocked ? "locked" : "idle");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [verdict, setVerdict] = useState<VerdictResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [judgementAt, setJudgementAt] = useState<Date | null>(null);
   const [displayOutcome, setDisplayOutcome] = useState<"survive" | "death" | null>(null);
   const [displayReason, setDisplayReason] = useState<string>("");
-  const dropArmedRef = useRef(false);
+  const spinArmedRef = useRef(false);
+  const autoShownRef = useRef(false);
 
   useEffect(() => {
-    if (phase === "resolved" || phase === "dropping" || phase === "requesting") return;
-    setPhase(!devMode && (slotState.locked || alreadyPlayedToday) ? "locked" : "idle");
-  }, [slotState.locked, alreadyPlayedToday, phase, devMode]);
+    if (phase === "resolved" || phase === "spinning" || phase === "requesting") return;
+    setPhase(initialLocked ? "locked" : "idle");
+  }, [initialLocked, phase]);
 
-  const handleDrop = useCallback(async () => {
+  useEffect(() => {
+    if (authLoading || autoShownRef.current || showIntro) return;
+    if (alreadyPlayedToday && userRow?.last_outcome && userRow?.last_reason) {
+      autoShownRef.current = true;
+      setDisplayOutcome(userRow.last_outcome);
+      setDisplayReason(userRow.last_reason);
+      setJudgementAt(new Date());
+      setModalOpen(true);
+    }
+  }, [authLoading, alreadyPlayedToday, userRow, showIntro]);
+
+  const handleSpin = useCallback(async () => {
     if (phase !== "idle") return;
     setJudgementAt(new Date());
     setPhase("requesting");
     try {
       const qs = new URLSearchParams();
+      if (devMode) qs.set("dev", "true");
       if (devMode && forceOutcome) qs.set("force", forceOutcome);
       if (devMode && mockHour !== null) qs.set("hour", String(mockHour));
       const res = await fetch(`/api/verdict${qs.toString() ? "?" + qs : ""}`, {
@@ -104,50 +116,33 @@ export default function GamePage() {
       if (!res.ok) throw new Error("verdict failed");
       const v: VerdictResponse = await res.json();
       setVerdict(v);
-      dropArmedRef.current = true;
-      setPhase("dropping");
+      if (v.replay) {
+        setDisplayOutcome(v.outcome);
+        setDisplayReason(v.reasonText);
+        setPhase("locked");
+        setModalOpen(true);
+        return;
+      }
+      spinArmedRef.current = true;
+      setPhase("spinning");
     } catch {
       setPhase("idle");
     }
   }, [phase, devMode, forceOutcome, mockHour]);
 
-  // Pegboard now reports the physically-derived outcome directly. We use
-  // verdict reason texts but pick the matching one for the actual result.
   const handleResolved = useCallback(
     (actualOutcome: "survive" | "death") => {
       if (!verdict) return;
       const reason =
-        actualOutcome === verdict.outcome
-          ? verdict.reasonText
-          : verdict.fallbackReasonText;
-
+        actualOutcome === verdict.outcome ? verdict.reasonText : verdict.fallbackReasonText;
       setDisplayOutcome(actualOutcome);
       setDisplayReason(reason);
-
-      const updated: PersistedState = {
-        lastPlayedDate: todayKey,
-        streak: actualOutcome === "survive" ? persisted.streak + 1 : 0,
-        score: persisted.score + (actualOutcome === "survive" ? 10 + slotState.closedCount : 0),
-        lastOutcome: actualOutcome,
-      };
-      setPersisted(updated);
-      if (!devMode) savePersisted(updated);
       setPhase("resolved");
       setModalOpen(true);
+      void refetch();
     },
-    [verdict, persisted, todayKey, slotState.closedCount, devMode],
+    [verdict, refetch],
   );
-
-  const resetLockout = useCallback(() => {
-    try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
-    setPersisted({ lastPlayedDate: null, streak: 0, score: 0, lastOutcome: null });
-    setVerdict(null);
-    setDisplayOutcome(null);
-    setDisplayReason("");
-    setModalOpen(false);
-    dropArmedRef.current = false;
-    setPhase("idle");
-  }, []);
 
   const clockStr = (mockHour !== null
     ? new Date(0, 0, 0, mockHour, 0)
@@ -157,60 +152,89 @@ export default function GamePage() {
     hour: "2-digit", minute: "2-digit", hour12: false,
   });
 
-  // Closed-slot layout — verdict overrides if present (server-authoritative).
-  const closedIdx = useMemo(
-    () => verdict?.closedSlotIndices ?? closedSlotIndices(slotState.closedCount, todayKey),
-    [verdict?.closedSlotIndices, slotState.closedCount, todayKey],
-  );
+  // --- Hydration placeholder: matches the bg-soft canvas so there's no flash ---
+  if (!mounted) {
+    return <div className="min-h-screen bg-bgsoft" />;
+  }
+
+  // --- Welcome Gate ---
+  if (showIntro) {
+    return (
+      <main
+        dir="rtl"
+        className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-bgsoft font-rubik animate-[fadein_300ms_ease-out]"
+      >
+        <h1
+          className="font-black text-5xl sm:text-6xl tracking-tight text-center mb-4"
+          style={{ textShadow: "4px 4px 0 #0A0A0A" }}
+        >
+          לשרוד את היום
+        </h1>
+        <p className="text-base sm:text-lg font-medium text-gray-concrete text-center max-w-md mb-10">
+          מה הם החיים בעצם, אם לא משחק הישרדות יומיומי?
+        </p>
+        <div className="flex flex-col gap-4 w-full max-w-sm">
+          <BrutalButton variant="survive" onClick={dismissIntro} className="text-lg py-4">
+            כנס ותהמר על החיים שלך 🎲
+          </BrutalButton>
+          <WelcomeGoogleButton onSuccess={dismissIntro} />
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen flex flex-col items-stretch gap-5 py-4">
-      <Header streak={persisted.streak} score={persisted.score} clock={clockStr} />
+    <main className="min-h-screen flex flex-col items-stretch gap-5 py-4 pb-28 animate-[fadein_300ms_ease-out]">
+      <Header streak={streak} score={score} clock={clockStr} />
 
       <div className="w-full max-w-3xl mx-auto px-4 flex flex-col items-center gap-4">
         <div className="w-full flex items-baseline justify-between font-rubik">
           <span className="text-sm text-gray-concrete font-bold">
-            כיסאות פתוחים: {slotState.openCount}
+            פלחים על הגלגל: {slotState.ballsDropped}
           </span>
           <h1 className="text-2xl font-black tracking-tight">לשרוד את היום</h1>
           <span className="text-sm text-gray-concrete font-bold">
-            כדורים: {slotState.ballsDropped}
+            🔴 1 · 🟢 {slotState.ballsDropped - 1}
           </span>
         </div>
 
-        <Pegboard
-          ballsToDrop={slotState.ballsDropped}
-          closedIndices={closedIdx}
+        <RouletteWheel
+          totalSlices={slotState.ballsDropped}
           outcome={verdict?.outcome ?? "survive"}
-          start={phase === "dropping" && dropArmedRef.current}
+          spin={phase === "spinning" && spinArmedRef.current}
           onResolved={handleResolved}
         />
 
         <BrutalButton
           variant={phase === "locked" ? "ink" : "survive"}
-          disabled={phase !== "idle"}
-          onClick={handleDrop}
+          disabled={phase !== "idle" || authLoading}
+          onClick={handleSpin}
           className="mt-2"
         >
-          {phase === "locked" && slotState.locked && "המשחק נפתח ב־08:00"}
-          {phase === "locked" && !slotState.locked && alreadyPlayedToday && "חזור מחר ב־08:00"}
-          {phase === "idle" && "שחק עכשיו"}
-          {phase === "requesting" && "טוען…"}
-          {phase === "dropping" && "הכדורים נופלים…"}
-          {phase === "resolved" && "סיימת להיום"}
+          {authLoading && "טוען…"}
+          {!authLoading && phase === "locked" && slotState.locked && "המשחק נפתח ב־08:00"}
+          {!authLoading && phase === "locked" && !slotState.locked && alreadyPlayedToday && "חזור מחר ב־08:00"}
+          {!authLoading && phase === "idle" && "סובב את הגלגל"}
+          {!authLoading && phase === "requesting" && "טוען…"}
+          {!authLoading && phase === "spinning" && "הגלגל מסתובב…"}
+          {!authLoading && phase === "resolved" && "סיימת להיום"}
         </BrutalButton>
       </div>
 
-      {modalOpen && verdict && judgementAt && displayOutcome && (
+      {modalOpen && judgementAt && displayOutcome && (
         <OutcomeModal
           outcome={displayOutcome}
           reasonText={displayReason}
           unlockAt={unlockAt}
           judgementAt={judgementAt}
           hour={mockHour ?? istHour(judgementAt)}
-          streak={persisted.streak}
-          score={persisted.score}
-          onPrimary={() => { setModalOpen(false); setPhase(devMode ? "idle" : "locked"); }}
+          streak={streak}
+          score={score}
+          onPrimary={() => {
+            setModalOpen(false);
+            setPhase(devMode ? "idle" : "locked");
+            if (displayOutcome === "death") router.push("/leaderboard");
+          }}
           onSecondary={() => { setModalOpen(false); setPhase(devMode ? "idle" : "locked"); }}
         />
       )}
@@ -221,9 +245,11 @@ export default function GamePage() {
           setForceOutcome={setForceOutcome}
           mockHour={mockHour}
           setMockHour={setMockHour}
-          onResetLockout={resetLockout}
+          onResetLockout={() => { /* dev mode bypasses lockout server-side */ }}
         />
       )}
+
+      <BottomNav />
     </main>
   );
 }

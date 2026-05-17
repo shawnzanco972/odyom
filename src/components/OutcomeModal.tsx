@@ -1,13 +1,12 @@
 "use client";
 import { BrutalButton } from "./BrutalButton";
+import { LinkGoogleButton } from "./LinkGoogleButton";
 
 export interface OutcomeModalProps {
   outcome: "survive" | "death";
   reasonText: string;
   unlockAt?: Date;
-  /** When the user pressed "drop" (IST display). */
   judgementAt: Date;
-  /** IST hour at judgement time — drives the risk tier badge. */
   hour: number;
   streak: number;
   score: number;
@@ -32,25 +31,6 @@ function formatIST(d: Date): string {
   });
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="inline-flex items-center gap-1 bg-white border-2 border-ink px-3 py-1.5 shadow-[-3px_3px_0_0_#0A0A0A] font-rubik font-bold text-sm whitespace-nowrap">
-      {children}
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A] px-4 py-3 text-center">
-      <div className="font-rubik font-bold text-xs text-gray-concrete uppercase tracking-wider mb-1">
-        {label}
-      </div>
-      <div className="font-rubik font-black text-2xl text-ink leading-none">{value}</div>
-    </div>
-  );
-}
-
 export function OutcomeModal({
   outcome,
   reasonText,
@@ -63,59 +43,101 @@ export function OutcomeModal({
   onSecondary,
 }: OutcomeModalProps) {
   const isSurvive = outcome === "survive";
-  const borderColor = isSurvive ? "border-survive" : "border-death";
-  const accentColor = isSurvive ? "text-survive" : "text-death";
-  const topLabel = isSurvive ? "תוצאה: שרדת!" : "תוצאה: מתת";
-  const header = isSurvive ? "שרדת! 🟢" : "מתת 🔴";
+  const bgClass = isSurvive ? "bg-survive-bg" : "bg-death-bg";
+  const accentBg = isSurvive ? "bg-survive-deep" : "bg-death";
+  const ctaText = isSurvive ? "השווי להמונים" : "הבנתי, שחרר אותי";
   const risk = riskForHour(hour);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 overflow-y-auto">
-      <div
-        dir="rtl"
-        className={`relative w-full max-w-lg bg-white border-[4px] ${borderColor} shadow-[-8px_8px_0_0_#0A0A0A] p-6 sm:p-8 font-rubik`}
-      >
-        {/* 1. Top label */}
-        <div className={`font-bold text-sm uppercase tracking-widest mb-2 ${accentColor}`}>
-          {topLabel}
+    <div
+      dir="rtl"
+      className={`fixed inset-0 z-50 ${bgClass} overflow-y-auto animate-[fadein_220ms_ease-out]`}
+    >
+      {/* Faint background decoration */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
+        <span className="text-[260px] sm:text-[360px] font-black select-none">
+          {isSurvive ? "🎉" : "💀"}
+        </span>
+      </div>
+
+      <main className="relative z-10 w-full max-w-xl mx-auto px-5 py-10 min-h-screen flex flex-col items-center justify-center font-rubik">
+
+        {/* Oversized rotated header with white text-shadow */}
+        <div className="text-center mb-8 transform -rotate-3">
+          <h1
+            className="font-black text-ink uppercase tracking-tighter leading-[0.95]"
+            style={{
+              fontSize: "clamp(3.5rem, 14vw, 5.5rem)",
+              textShadow: "4px 4px 0 #ffffff",
+            }}
+          >
+            {isSurvive ? "שרדת! 🟢" : "מתת 🔴"}
+          </h1>
         </div>
 
-        {/* 2. Oversized header with stark black text-shadow */}
-        <h2
-          className="font-black leading-[0.95] tracking-tight text-ink mb-6"
-          style={{
-            fontSize: "clamp(3rem, 10vw, 4.75rem)",
-            textShadow: "4px 4px 0 #0A0A0A",
-            WebkitTextStroke: "1px #0A0A0A",
-          }}
+        {/* Risk-level badge — vivid pill, slight rotation */}
+        <div className="mb-7 transform -rotate-1">
+          <span
+            className={`inline-block ${accentBg} text-white font-black text-lg sm:text-xl px-5 py-3 border-[3px] border-ink shadow-[4px_4px_0_0_#0A0A0A] uppercase tracking-wide`}
+          >
+            רמת סיכון: {risk.label} ({risk.fraction})
+          </span>
+        </div>
+
+        {/* Reason text on death (per design — death shows it big, no card); for
+            survive we'll put it inside the stats card for parity with the spec */}
+        {!isSurvive && (
+          <p className="text-center text-2xl sm:text-3xl font-extrabold leading-tight text-ink max-w-md mb-8 px-2">
+            {reasonText}
+          </p>
+        )}
+
+        {/* Stats card — tilted, 3px border, thick offset shadow */}
+        <div className="w-full max-w-sm bg-white border-[3px] border-ink shadow-[8px_8px_0_0_#0A0A0A] rounded-lg p-6 transform rotate-2 mb-8">
+          {isSurvive ? (
+            <>
+              <div className="flex items-center justify-center mb-3 text-survive-deep text-5xl">📈</div>
+              <p className="font-black text-2xl text-ink text-center">{reasonText}</p>
+              <div className="border-t-2 border-ink my-4" />
+              <p className="font-black text-xl text-center">ניקוד סופי: {score.toLocaleString("he-IL")}</p>
+              <p className="font-bold text-lg text-center text-gray-concrete">רצף: {streak} ימים</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center mb-3 text-death text-5xl">📉</div>
+              <p className="font-black text-2xl text-ink text-center">הרצף התאפס ל־0</p>
+              <p className="font-bold text-base text-center text-gray-concrete mt-1">
+                ניקוד סופי: {score.toLocaleString("he-IL")}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Compact timestamp pill (kept from previous design for screenshot-shareability) */}
+        <div className="mb-7 transform rotate-1">
+          <span className="inline-block bg-white border-2 border-ink px-3 py-1.5 shadow-[3px_3px_0_0_#0A0A0A] font-bold text-sm whitespace-nowrap">
+            🕒 שעת גזירת הדין: {formatIST(judgementAt)}
+          </span>
+        </div>
+
+        {/* Primary CTA */}
+        <button
+          onClick={onPrimary}
+          className={`w-full max-w-sm ${accentBg} text-white border-[3px] border-ink rounded-lg py-4 px-6 font-black text-xl shadow-[6px_6px_0_0_#0A0A0A] active:translate-x-[-6px] active:translate-y-[6px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-3 mb-3`}
         >
-          <span className={accentColor}>{header}</span>
-        </h2>
+          {ctaText}
+          <span aria-hidden>{isSurvive ? "↗" : "→"}</span>
+        </button>
 
-        {/* 3. Main cynical phrase box */}
-        <div className="bg-white border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A] p-4 mb-5">
-          <p className="text-lg font-medium text-ink leading-snug">{reasonText}</p>
-        </div>
-
-        {/* 4. NEW — Timestamp & Risk metadata row */}
-        <div className="flex flex-wrap gap-2 mb-5 justify-start">
-          <Pill>🕒 שעת גזירת הדין: {formatIST(judgementAt)}</Pill>
-          <Pill>🎲 רמת סיכון: {risk.label} ({risk.fraction})</Pill>
-        </div>
-
-        {/* 5. Score / streak stat grid */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <StatCard
-            label="רצף"
-            value={isSurvive ? `🔥 ${streak}` : "💀 0"}
-          />
-          <StatCard label="ניקוד" value={`🏆 ${score.toLocaleString("he-IL")}`} />
+        {/* Google linkage banner — both outcomes (preserves streak across devices) */}
+        <div className="w-full max-w-sm mb-4">
+          <LinkGoogleButton />
         </div>
 
         {/* Death lockout countdown */}
         {!isSurvive && unlockAt && (
-          <div className="text-sm text-gray-concrete font-bold mb-5">
-            המשחק הבא נפתח ב־
+          <p className="text-sm font-bold text-ink/70 mb-3">
+            נפתח שוב ב־
             {unlockAt.toLocaleString("he-IL", {
               timeZone: "Asia/Jerusalem",
               hour: "2-digit",
@@ -123,23 +145,17 @@ export function OutcomeModal({
               day: "2-digit",
               month: "2-digit",
             })}
-          </div>
+          </p>
         )}
 
-        {/* 6. Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-          <BrutalButton variant="ink" onClick={onSecondary} className="text-base">
-            חזור למסך הראשי
-          </BrutalButton>
-          <BrutalButton
-            variant={isSurvive ? "survive" : "death"}
-            onClick={onPrimary}
-            className="text-base"
-          >
-            השווי להמונים
-          </BrutalButton>
-        </div>
-      </div>
+        {/* Secondary "back to main" underlined link */}
+        <button
+          onClick={onSecondary}
+          className="font-bold text-base text-ink underline hover:text-survive-deep transition-colors"
+        >
+          חזור למסך הראשי
+        </button>
+      </main>
     </div>
   );
 }

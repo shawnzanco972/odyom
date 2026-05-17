@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 export function Header({
   streak,
@@ -17,9 +18,13 @@ export function Header({
       <div className="font-rubik font-black text-base sm:text-lg tracking-wider">
         שעה: {clock}
       </div>
-      <div className="font-rubik font-black text-base sm:text-lg border-[3px] border-ink px-3 py-1 bg-bgsoft shadow-[-4px_4px_0_0_#0A0A0A]">
+      <Link
+        href="/leaderboard"
+        className="font-rubik font-black text-base sm:text-lg border-[3px] border-ink px-3 py-1 bg-bgsoft shadow-[-4px_4px_0_0_#0A0A0A] hover:bg-[#FEF9C3] transition-colors"
+        title="טבלת המובילים"
+      >
         🏆 {score.toLocaleString("he-IL")} נק׳
-      </div>
+      </Link>
     </header>
   );
 }

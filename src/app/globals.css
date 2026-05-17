@@ -14,3 +14,8 @@ html, body {
 }
 
 html { direction: rtl; }
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
