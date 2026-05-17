@@ -18,12 +18,12 @@ export function riskToVisualPercent(actualRisk: number): number {
 }
 
 const TIERS: { upperPct: number; label: string; color: string }[] = [
-  // upperPct exclusive on its bucket
-  { upperPct: 20,  label: "שגרתית",  color: "#22C55E" }, // emerald
-  { upperPct: 40,  label: "רגועה",   color: "#84CC16" }, // lime
-  { upperPct: 60,  label: "בינונית", color: "#EAB308" }, // yellow
-  { upperPct: 80,  label: "דרוכה",   color: "#F59E0B" }, // orange
-  { upperPct: 101, label: "פסיכופת", color: "#DC2626" }, // crimson — bucket >=80
+  // upperPct exclusive on its bucket. Labels are the canonical cynical copy.
+  { upperPct: 20,  label: "אשליית שליטה", color: "#22C55E" }, // emerald
+  { upperPct: 40,  label: "שלב ההכחשה",   color: "#84CC16" }, // lime
+  { upperPct: 60,  label: "הימור מחושב",  color: "#EAB308" }, // yellow
+  { upperPct: 80,  label: "דופק בשמיים",  color: "#F59E0B" }, // orange
+  { upperPct: 101, label: "משאלת מוות",   color: "#DC2626" }, // crimson — bucket >=80
 ];
 
 export function riskTierFromVisualPct(visualPct: number): RiskTier {

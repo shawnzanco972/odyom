@@ -2,7 +2,7 @@
 import { LinkGoogleButton } from "./LinkGoogleButton";
 import { ShareButton } from "./ShareButton";
 import { riskTierFromBalls } from "@/lib/risk";
-import { gameModeGlyph, gameModeLabel } from "@/lib/game-modes";
+import { gameModeGlyph, gameModeLabel, outcomeMessage } from "@/lib/game-modes";
 import type { GameMode } from "./GameModeTabs";
 
 export interface OutcomeModalProps {
@@ -99,8 +99,14 @@ export function OutcomeModal({
         </div>
 
         {/* Chosen-game line — compact so the card still fits one screen */}
-        <p className="mb-4 text-xs sm:text-sm font-black text-ink/80 uppercase tracking-wider">
+        <p className="mb-3 text-xs sm:text-sm font-black text-ink/80 uppercase tracking-wider">
           {gameModeGlyph(gameMode)} משחק: {gameModeLabel(gameMode)}
+        </p>
+
+        {/* Per-game narrative — the cinematic 'what just happened'. Sits above
+            the cynical 'why' reason text from CONTENT.json. */}
+        <p className="mb-4 max-w-md text-center text-base sm:text-lg font-bold leading-snug text-ink/90 px-2">
+          {outcomeMessage(gameMode, outcome)}
         </p>
 
         {/* Reason — death shows it big above the card; survive folds it inside */}
