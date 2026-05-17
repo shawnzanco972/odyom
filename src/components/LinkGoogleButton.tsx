@@ -14,17 +14,28 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
   if (!session || !isAnon) return null;
 
   const handleLink = async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      window.alert("Supabase לא מוגדר.");
+      return;
+    }
     setBusy(true);
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
-      console.error("link google failed:", error.message);
+    try {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) {
+        console.error("[link google failed]", error);
+        window.alert(`Google linking failed:\n${error.message}\n\nCheck Supabase → Auth → URL Configuration → Redirect URLs.`);
+        setBusy(false);
+        return;
+      }
+      // On success the browser is redirected to Google.
+    } catch (e) {
+      console.error("[link google threw]", e);
+      window.alert(`Unexpected error: ${(e as Error)?.message ?? e}`);
       setBusy(false);
     }
-    // On success, browser is redirected to Google.
   };
 
   if (compact) {
