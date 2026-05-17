@@ -264,10 +264,14 @@ export default function GamePage() {
           </p>
         </div>
 
-        {/* Mode selector — visible only while idle */}
-        {phase === "idle" && !alreadyPlayedToday && (
-          <GameModeTabs active={activeGameMode} onChange={setActiveGameMode} />
-        )}
+        {/* Mode selector — always visible so players can preview every game
+            even after they've used today's spin. Disabled while a spin is in
+            flight so the active game can't be swapped mid-animation. */}
+        <GameModeTabs
+          active={activeGameMode}
+          onChange={setActiveGameMode}
+          disabled={phase === "requesting" || phase === "spinning"}
+        />
 
         {/* MIDDLE — the arcade arena */}
         <div className="flex items-center justify-center w-full">
