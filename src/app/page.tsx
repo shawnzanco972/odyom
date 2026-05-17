@@ -275,7 +275,7 @@ export default function GamePage() {
 
         {/* MIDDLE — the arcade arena */}
         <div className="flex items-center justify-center w-full">
-          <div className="flex-1 max-w-[min(640px,90vw,75vh)]">
+          <div className="relative flex-1 max-w-[min(640px,90vw,75vh)]">
             {activeGameMode === "wheel" && (
               <RouletteWheel
                 totalSlices={slotState.ballsDropped}
@@ -319,6 +319,27 @@ export default function GamePage() {
                 baseValue={verdict?.baseValue}
                 awardedPoints={verdict?.awardedPoints}
               />
+            )}
+
+            {/* Lock overlay — non-wheel modes don't have a Spin button to
+                signal "closed", so we cover the arena when the player has
+                already played today or the slot isn't open yet. */}
+            {activeGameMode !== "wheel" && phase === "locked" && (
+              <div
+                className="absolute inset-0 z-40 flex items-center justify-center p-4"
+                style={{ backgroundColor: "rgba(255,255,255,0.85)" }}
+                dir="rtl"
+              >
+                <div className="bg-white border-[3px] border-[#0A0A0A] shadow-[6px_6px_0_0_#0A0A0A] px-5 py-4 text-center font-rubik max-w-xs">
+                  <div className="text-3xl mb-1">🔒</div>
+                  <div className="font-black text-base md:text-lg text-ink leading-tight">
+                    {alreadyPlayedToday ? "כבר שיחקת היום" : "המשחק עוד לא נפתח"}
+                  </div>
+                  <div className="text-xs md:text-sm font-bold text-gray-concrete mt-1">
+                    {alreadyPlayedToday ? "חזור מחר ב־08:00" : "ייפתח ב־08:00"}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
