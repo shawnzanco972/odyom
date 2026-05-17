@@ -18,13 +18,14 @@ export function DevPanel({
   return (
     <div
       dir="ltr"
-      className="fixed top-3 left-3 z-[60] w-[260px] bg-yellow-200/95 border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A] p-3 font-rubik text-xs flex flex-col items-stretch gap-2"
+      className="fixed top-3 left-3 z-[80] w-[260px] bg-yellow-200/95 border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A] p-3 font-rubik text-xs flex flex-col items-stretch gap-2"
     >
       <span className="font-black uppercase tracking-wider text-xs bg-ink text-yellow-200 px-2 py-1">
         DEV
       </span>
-      <span className="text-[10px] text-gray-700">
-        Overrides only honored in non-prod builds.
+      <span className="text-[10px] text-gray-700 leading-tight">
+        Localhost only. Force/hour overrides are silently ignored on prod
+        unless NEXT_PUBLIC_DEV_MODE=true is set in Vercel.
       </span>
 
       <button

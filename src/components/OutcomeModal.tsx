@@ -2,7 +2,7 @@
 import { LinkGoogleButton } from "./LinkGoogleButton";
 import { ShareButton } from "./ShareButton";
 import { riskTierFromBalls } from "@/lib/risk";
-import { gameModeGlyph, gameModeLabel, outcomeMessage } from "@/lib/game-modes";
+import { gameModeGlyph, gameModeLabel } from "@/lib/game-modes";
 import type { GameMode } from "./GameModeTabs";
 
 export interface OutcomeModalProps {
@@ -98,51 +98,32 @@ export function OutcomeModal({
           </span>
         </div>
 
-        {/* Chosen-game line — compact so the card still fits one screen */}
-        <p className="mb-3 text-xs sm:text-sm font-black text-ink/80 uppercase tracking-wider">
+        {/* Chosen-game line — compact, no extra description below it.
+            The only narrative on the screen is the dynamic daily punchline
+            in the central card. */}
+        <p className="mb-4 text-xs sm:text-sm font-black text-ink/80 uppercase tracking-wider">
           {gameModeGlyph(gameMode)} משחק: {gameModeLabel(gameMode)}
         </p>
 
-        {/* Per-game narrative — the cinematic 'what just happened'. Sits above
-            the cynical 'why' reason text from CONTENT.json. */}
-        <p className="mb-4 max-w-md text-center text-base sm:text-lg font-bold leading-snug text-ink/90 px-2">
-          {outcomeMessage(gameMode, outcome)}
-        </p>
-
-        {/* Reason — death shows it big above the card; survive folds it inside */}
-        {!isSurvive && (
-          <p className="text-center text-lg sm:text-xl font-extrabold leading-tight text-ink max-w-md mb-4 px-2">
+        {/* Central card — the ONLY narrative on the screen. Hero of the layout. */}
+        <div className="w-full max-w-sm bg-white border-[3px] border-ink shadow-[6px_6px_0_0_#0A0A0A] rounded-lg p-4 transform rotate-2 mb-5">
+          <div className={`flex items-center justify-center mb-2 text-3xl ${isSurvive ? "text-[#106B01]" : "text-[#DC2626]"}`}>
+            {isSurvive ? "📈" : "📉"}
+          </div>
+          <p className="font-black text-base sm:text-lg text-ink text-center leading-snug">
             {reasonText}
           </p>
-        )}
-
-        {/* Stats card — tilted, tighter padding */}
-        <div className="w-full max-w-sm bg-white border-[3px] border-ink shadow-[6px_6px_0_0_#0A0A0A] rounded-lg p-4 transform rotate-2 mb-5">
-          {isSurvive ? (
-            <>
-              <div className="flex items-center justify-center mb-1.5 text-[#106B01] text-3xl">📈</div>
-              <p className="font-black text-base sm:text-lg text-ink text-center leading-snug">{reasonText}</p>
-              <div className="border-t-2 border-ink my-2.5" />
-              <div className="flex justify-around items-baseline">
-                <div className="text-center">
-                  <div className="font-black text-2xl">🔥 {streak}</div>
-                  <div className="text-[10px] font-bold text-gray-concrete uppercase">רצף</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-black text-2xl">{score.toLocaleString("he-IL")}</div>
-                  <div className="text-[10px] font-bold text-gray-concrete uppercase">ניקוד</div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-center mb-1.5 text-[#DC2626] text-3xl">📉</div>
-              <p className="font-black text-lg text-ink text-center">הרצף התאפס ל־0</p>
-              <p className="font-bold text-sm text-center text-gray-concrete mt-1">
-                ניקוד סופי: {score.toLocaleString("he-IL")}
-              </p>
-            </>
-          )}
+          <div className="border-t-2 border-ink my-2.5" />
+          <div className="flex justify-around items-baseline">
+            <div className="text-center">
+              <div className="font-black text-2xl">🔥 {streak}</div>
+              <div className="text-[10px] font-bold text-gray-concrete uppercase">רצף</div>
+            </div>
+            <div className="text-center">
+              <div className="font-black text-2xl">{score.toLocaleString("he-IL")}</div>
+              <div className="text-[10px] font-bold text-gray-concrete uppercase">ניקוד</div>
+            </div>
+          </div>
         </div>
 
         {/* Timestamp + share-friendly meta pill */}
