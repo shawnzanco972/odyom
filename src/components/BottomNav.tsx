@@ -20,7 +20,7 @@ export function BottomNav() {
   return (
     <nav
       dir="rtl"
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] z-40 bg-white border-t-4 border-ink rounded-t-xl shadow-[0_-4px_0_0_#0A0A0A] flex justify-around items-center px-4 pt-2 pb-5 font-rubik"
+      className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[600px] z-40 bg-white border-t-4 border-ink rounded-t-xl shadow-[0_-4px_0_0_#0A0A0A] flex justify-around items-center px-4 pt-2 pb-5 font-rubik"
     >
       {TABS.map(tab => {
         const isActive = pathname === tab.href || (tab.href !== "/" && pathname.startsWith(tab.href));

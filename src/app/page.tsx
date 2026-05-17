@@ -9,6 +9,13 @@ import { OutcomeModal } from "@/components/OutcomeModal";
 import { DevPanel, type ForceOutcome } from "@/components/DevPanel";
 import { WelcomeGoogleButton } from "@/components/WelcomeGoogleButton";
 import { BottomNav } from "@/components/BottomNav";
+import { TopNav } from "@/components/TopNav";
+import {
+  LiveFeed,
+  NextWheelCountdown,
+  RiskGauge,
+  SurvivalChance,
+} from "@/components/UrgencyWidgets";
 import { useUser } from "@/components/AuthProvider";
 import {
   activeSlots,
@@ -31,9 +38,7 @@ export default function GamePage() {
   const router = useRouter();
   const { userRow, loading: authLoading, refetch } = useUser();
 
-  // --- Hydration-safe intro gate ---
-  // `mounted` flips true only after the first client-side useEffect runs, so
-  // returning visitors never flash the intro screen during SSR hydration.
+  // Hydration-safe intro gate
   const [mounted, setMounted] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   useEffect(() => {
@@ -42,7 +47,6 @@ export default function GamePage() {
     }
     setMounted(true);
   }, []);
-
   const dismissIntro = useCallback(() => {
     try { window.localStorage.setItem(INTRO_KEY, "true"); } catch {}
     setShowIntro(false);
@@ -152,12 +156,10 @@ export default function GamePage() {
     hour: "2-digit", minute: "2-digit", hour12: false,
   });
 
-  // --- Hydration placeholder: matches the bg-soft canvas so there's no flash ---
   if (!mounted) {
     return <div className="min-h-screen bg-bgsoft" />;
   }
 
-  // --- Welcome Gate ---
   if (showIntro) {
     return (
       <main
@@ -165,8 +167,8 @@ export default function GamePage() {
         className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-bgsoft font-rubik animate-[fadein_300ms_ease-out]"
       >
         <h1
-          className="font-black text-5xl sm:text-6xl tracking-tight text-center mb-4"
-          style={{ textShadow: "4px 4px 0 #0A0A0A" }}
+          className="font-black text-5xl sm:text-7xl tracking-tight text-center mb-4"
+          style={{ textShadow: "4px 4px 0 #ffffff" }}
         >
           לשרוד את היום
         </h1>
@@ -184,42 +186,95 @@ export default function GamePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-stretch gap-5 py-4 pb-28 animate-[fadein_300ms_ease-out]">
-      <Header streak={streak} score={score} clock={clockStr} />
+    <div className="min-h-screen pb-28 md:pb-12 animate-[fadein_300ms_ease-out] bg-white">
+      <TopNav />
 
-      <div className="w-full max-w-3xl mx-auto px-4 flex flex-col items-center gap-4">
-        <div className="w-full flex items-baseline justify-between font-rubik">
-          <span className="text-sm text-gray-concrete font-bold">
-            פלחים על הגלגל: {slotState.ballsDropped}
-          </span>
-          <h1 className="text-2xl font-black tracking-tight">לשרוד את היום</h1>
-          <span className="text-sm text-gray-concrete font-bold">
-            🔴 1 · 🟢 {slotState.ballsDropped - 1}
-          </span>
+      {/* Mobile header keeps the streak/clock/score chips */}
+      <div className="md:hidden">
+        <Header streak={streak} score={score} clock={clockStr} />
+      </div>
+
+      <main className="w-full max-w-6xl mx-auto px-4 md:px-8 pt-4 md:pt-8 flex flex-col gap-6">
+        {/* Title row + desktop stats */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="text-center md:text-right">
+            <h1
+              className="font-black text-3xl md:text-5xl tracking-tight leading-none"
+              style={{ textShadow: "3px 3px 0 #ffffff" }}
+            >
+              לשרוד את היום
+            </h1>
+            <p className="text-sm md:text-base text-gray-concrete font-bold mt-1">
+              פלחים על הגלגל: {slotState.ballsDropped} · 🔴 1 · 🟢 {slotState.ballsDropped - 1}
+            </p>
+          </div>
+          {/* Desktop-only quick stats */}
+          <div className="hidden md:flex gap-3 font-rubik">
+            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black">
+              🔥 רצף: {streak}
+            </div>
+            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black tracking-wider">
+              שעה: {clockStr}
+            </div>
+            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black">
+              🏆 {score.toLocaleString("he-IL")} נק׳
+            </div>
+          </div>
         </div>
 
-        <RouletteWheel
-          totalSlices={slotState.ballsDropped}
-          outcome={verdict?.outcome ?? "survive"}
-          spin={phase === "spinning" && spinArmedRef.current}
-          onResolved={handleResolved}
-        />
+        {/* Desktop: 3-column grid (live feed | wheel+gauge | urgency stats).
+            Mobile: stacked. */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-8 items-start">
+          {/* Left column (desktop): live feed. Mobile: appears later. */}
+          <div className="hidden md:block">
+            <LiveFeed />
+          </div>
 
-        <BrutalButton
-          variant={phase === "locked" ? "ink" : "survive"}
-          disabled={phase !== "idle" || authLoading}
-          onClick={handleSpin}
-          className="mt-2"
-        >
-          {authLoading && "טוען…"}
-          {!authLoading && phase === "locked" && slotState.locked && "המשחק נפתח ב־08:00"}
-          {!authLoading && phase === "locked" && !slotState.locked && alreadyPlayedToday && "חזור מחר ב־08:00"}
-          {!authLoading && phase === "idle" && "סובב את הגלגל"}
-          {!authLoading && phase === "requesting" && "טוען…"}
-          {!authLoading && phase === "spinning" && "הגלגל מסתובב…"}
-          {!authLoading && phase === "resolved" && "סיימת להיום"}
-        </BrutalButton>
-      </div>
+          {/* Wheel + risk gauge cluster */}
+          <div className="flex flex-row-reverse items-center justify-center gap-4 mx-auto">
+            <RouletteWheel
+              totalSlices={slotState.ballsDropped}
+              outcome={verdict?.outcome ?? "survive"}
+              spin={phase === "spinning" && spinArmedRef.current}
+              onResolved={handleResolved}
+            />
+            <RiskGauge ballsDropped={slotState.ballsDropped} />
+          </div>
+
+          {/* Right column (desktop): urgency stats. Mobile: appears later. */}
+          <div className="hidden md:flex flex-col gap-3">
+            <SurvivalChance ballsDropped={slotState.ballsDropped} />
+            <NextWheelCountdown />
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="flex justify-center">
+          <BrutalButton
+            variant={phase === "locked" ? "ink" : "survive"}
+            disabled={phase !== "idle" || authLoading}
+            onClick={handleSpin}
+            className="w-full max-w-sm"
+          >
+            {authLoading && "טוען…"}
+            {!authLoading && phase === "locked" && slotState.locked && "המשחק נפתח ב־08:00"}
+            {!authLoading && phase === "locked" && !slotState.locked && alreadyPlayedToday && "חזור מחר ב־08:00"}
+            {!authLoading && phase === "idle" && "סובב את הגלגל"}
+            {!authLoading && phase === "requesting" && "טוען…"}
+            {!authLoading && phase === "spinning" && "הגלגל מסתובב…"}
+            {!authLoading && phase === "resolved" && "סיימת להיום"}
+          </BrutalButton>
+        </div>
+
+        {/* Mobile-only: urgency widgets stacked below the wheel */}
+        <div className="md:hidden flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <SurvivalChance ballsDropped={slotState.ballsDropped} />
+            <NextWheelCountdown />
+          </div>
+          <LiveFeed />
+        </div>
+      </main>
 
       {modalOpen && judgementAt && displayOutcome && (
         <OutcomeModal
@@ -233,7 +288,7 @@ export default function GamePage() {
           onPrimary={() => {
             setModalOpen(false);
             setPhase(devMode ? "idle" : "locked");
-            if (displayOutcome === "death") router.push("/leaderboard");
+            router.push("/leaderboard");
           }}
           onSecondary={() => { setModalOpen(false); setPhase(devMode ? "idle" : "locked"); }}
         />
@@ -250,6 +305,6 @@ export default function GamePage() {
       )}
 
       <BottomNav />
-    </main>
+    </div>
   );
 }

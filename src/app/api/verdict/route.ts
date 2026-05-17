@@ -99,6 +99,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
         madness_tag: madnessTagForStreak(newStreak),
         seen_reasons: newSeen,
         last_played_date: todayKey,
+        last_played_at: new Date().toISOString(),
         last_outcome: outcome,
         last_reason: reasonText,
       })

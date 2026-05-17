@@ -7,6 +7,7 @@ import { NicknameEditor } from "@/components/NicknameEditor";
 import { SuggestionTrigger } from "@/components/SuggestionTrigger";
 import { LinkGoogleButton } from "@/components/LinkGoogleButton";
 import { BottomNav } from "@/components/BottomNav";
+import { TopNav } from "@/components/TopNav";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function LeaderboardPage() {
 
   const { data: rows } = await supabase
     .from("users")
-    .select("id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_date, last_reason, seen_reasons")
+    .select("id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_at, last_played_date, last_reason, seen_reasons")
     .order("total_score", { ascending: false })
     .order("highest_streak", { ascending: false })
     .limit(50);
@@ -24,13 +25,15 @@ export default async function LeaderboardPage() {
   const players = (rows ?? []).map(normalizeUserRow);
 
   return (
-    <main
+    <div
       dir="rtl"
       style={{ backgroundColor: "#F1FDE7" }}
-      className="min-h-screen pb-28"
+      className="min-h-screen pb-28 md:pb-12"
     >
-      {/* Sticky top bar */}
-      <header className="sticky top-0 z-30 bg-white border-b-4 border-ink shadow-[0_4px_0_0_#0A0A0A] flex items-center justify-between px-4 py-3 max-w-2xl mx-auto">
+      <TopNav />
+
+      {/* Mobile-only sticky top bar (TopNav is desktop-only) */}
+      <header className="md:hidden sticky top-0 z-30 bg-white border-b-4 border-ink shadow-[0_4px_0_0_#0A0A0A] flex items-center justify-between px-4 py-3 max-w-2xl mx-auto">
         <Link href="/" className="font-bold text-sm underline hover:text-[#106B01]">
           ← למשחק
         </Link>
@@ -38,60 +41,63 @@ export default async function LeaderboardPage() {
         <span className="text-2xl" aria-hidden>⚡</span>
       </header>
 
-      <div className="w-full max-w-2xl mx-auto px-4 pt-6 flex flex-col gap-5 font-rubik">
-        {/* Page hero */}
-        <div className="flex flex-col items-center gap-1 mt-2">
+      <main className="w-full max-w-6xl mx-auto px-4 md:px-8 pt-6 md:pt-10 font-rubik">
+        {/* Page hero — unified design: ink text + white text-shadow (brand standard) */}
+        <div className="flex flex-col items-center gap-2 mb-8">
           <h2
-            className="font-black text-4xl sm:text-5xl uppercase tracking-tighter text-center"
-            style={{ textShadow: "3px 3px 0 #0A0A0A" }}
+            className="font-black text-5xl md:text-7xl uppercase tracking-tighter text-center text-ink leading-none"
+            style={{ textShadow: "4px 4px 0 #ffffff" }}
           >
             לוח הגורלות
           </h2>
-          <p className="text-sm font-bold text-gray-concrete">
+          <p className="text-sm md:text-base font-bold text-gray-concrete">
             מי פה הפראייר התורן?
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white border-2 border-ink rounded-xl p-2 shadow-[4px_4px_0_0_#0A0A0A]">
-          <LeaderboardTabs />
-        </div>
-
-        {/* Account controls */}
-        {user && (
-          <div className="flex flex-col gap-2">
-            <NicknameEditor />
-            <div className="flex gap-2 items-center justify-end">
-              <LinkGoogleButton compact />
-              <SuggestionTrigger />
+        {/* Desktop: 2-column layout (controls left, list right). Mobile: stacked. */}
+        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6 md:gap-10 items-start">
+          {/* Sidebar / controls */}
+          <aside className="flex flex-col gap-4">
+            <div className="bg-white border-2 border-ink rounded-xl p-2 shadow-[4px_4px_0_0_#0A0A0A]">
+              <LeaderboardTabs />
             </div>
-          </div>
-        )}
+            {user && (
+              <>
+                <NicknameEditor />
+                <div className="flex flex-col gap-2">
+                  <LinkGoogleButton compact />
+                  <SuggestionTrigger />
+                </div>
+              </>
+            )}
+          </aside>
 
-        {/* List */}
-        <ol className="flex flex-col gap-3 list-none p-0">
-          {players.map((p, i) => (
-            <li key={p.id}>
-              <LeaderboardRow
-                rank={i + 1}
-                display={p.nickname?.trim() || p.username}
-                totalScore={p.total_score}
-                currentStreak={p.current_streak}
-                highestStreak={p.highest_streak}
-                madnessTag={p.madness_tag}
-                isMe={user?.id === p.id}
-              />
-            </li>
-          ))}
-          {players.length === 0 && (
-            <li className="text-center text-gray-concrete font-bold py-12">
-              עדיין אין שחקנים. תהיה הראשון לשרוד!
-            </li>
-          )}
-        </ol>
-      </div>
+          {/* List */}
+          <ol className="flex flex-col gap-3 list-none p-0">
+            {players.map((p, i) => (
+              <li key={p.id}>
+                <LeaderboardRow
+                  rank={i + 1}
+                  display={p.nickname?.trim() || p.username}
+                  totalScore={p.total_score}
+                  currentStreak={p.current_streak}
+                  highestStreak={p.highest_streak}
+                  madnessTag={p.madness_tag}
+                  isMe={user?.id === p.id}
+                />
+              </li>
+            ))}
+            {players.length === 0 && (
+              <li className="text-center text-gray-concrete font-bold py-12">
+                עדיין אין שחקנים. תהיה הראשון לשרוד!
+              </li>
+            )}
+          </ol>
+        </div>
+      </main>
 
       <BottomNav />
-    </main>
+    </div>
   );
 }

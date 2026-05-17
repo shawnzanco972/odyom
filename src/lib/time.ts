@@ -87,3 +87,26 @@ export function nextUnlock(now: Date = new Date()): Date {
 }
 
 export const SLOT_COUNT = TOTAL_SLOTS;
+
+// Minutes until the next 30-min boundary (the next slice drop) in IST.
+// Capped to 0 once we're past 23:30 (no more drops until next morning's reset).
+export function minutesUntilNextDrop(now: Date = new Date()): number {
+  const p = istParts(now);
+  if (p.h < START_HOUR) {
+    return (START_HOUR - p.h) * 60 - p.mi;
+  }
+  if (p.h >= 23 && p.mi >= 30) return 0;
+  const minsInBlock = p.mi % 30;
+  return 30 - minsInBlock;
+}
+
+// 0..1 — same shape as the verdict route's death-odds curve so client-side
+// displays stay consistent with the actual server math.
+export function deathOddsFromBalls(ballsDropped: number): number {
+  const intervals = TOTAL_SLOTS - ballsDropped;
+  return Math.min(0.55, 0.05 + 0.5 * (intervals / 30));
+}
+
+export function survivalChanceFromBalls(ballsDropped: number): number {
+  return 1 - deathOddsFromBalls(ballsDropped);
+}

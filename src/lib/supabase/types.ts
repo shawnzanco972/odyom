@@ -48,6 +48,7 @@ export type Database = {
           highest_streak: number | null;
           id: string;
           last_outcome: string | null;
+          last_played_at: string | null;
           last_played_date: string | null;
           last_reason: string | null;
           madness_tag: string | null;
@@ -61,6 +62,7 @@ export type Database = {
           highest_streak?: number | null;
           id: string;
           last_outcome?: string | null;
+          last_played_at?: string | null;
           last_played_date?: string | null;
           last_reason?: string | null;
           madness_tag?: string | null;
@@ -74,6 +76,7 @@ export type Database = {
           highest_streak?: number | null;
           id?: string;
           last_outcome?: string | null;
+          last_played_at?: string | null;
           last_played_date?: string | null;
           last_reason?: string | null;
           madness_tag?: string | null;

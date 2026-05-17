@@ -46,7 +46,7 @@ export function OutcomeModal({
   // Inline color avoids any Tailwind JIT/cache miss on custom tokens.
   const bgColor = isSurvive ? "#C4EAB4" : "#FECACA";
   const accentBg = isSurvive ? "bg-[#106B01]" : "bg-[#DC2626]";
-  const ctaText = isSurvive ? "השווי להמונים" : "הבנתי, שחרר אותי";
+  const ctaText = "מי עוד שרד?";
   const risk = riskForHour(hour);
 
   return (
@@ -128,7 +128,7 @@ export function OutcomeModal({
           className={`w-full max-w-sm ${accentBg} text-white border-[3px] border-ink rounded-lg py-4 px-6 font-black text-xl shadow-[6px_6px_0_0_#0A0A0A] active:translate-x-[-6px] active:translate-y-[6px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-3 mb-3`}
         >
           {ctaText}
-          <span aria-hidden>{isSurvive ? "↗" : "→"}</span>
+          <span aria-hidden>🏆</span>
         </button>
 
         {/* Google linkage banner — both outcomes (preserves streak across devices) */}
