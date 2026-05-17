@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { minutesUntilNextDrop, survivalChanceFromBalls } from "@/lib/time";
+import { minutesUntilNextDrop } from "@/lib/time";
+import { riskTierFromBalls } from "@/lib/risk";
 import type { RecentActivityResponse } from "@/app/api/recent-activity/route";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,13 +82,8 @@ export function NextWheelCountdown() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vertical risk gauge — sits beside the wheel showing how lethal "now" is
-
-// Global mapping: actual server risk of 0.5 (50%) maps to a fully bleeding gauge.
-// visualPercentage = (actualRisk / 0.5) * 100
-export function riskToVisualPercent(actualRisk: number): number {
-  return Math.min(100, Math.max(0, (actualRisk / 0.5) * 100));
-}
+// Vertical risk gauge — sits beside the wheel showing how lethal "now" is.
+// Tier label + color come from lib/risk.ts so the modal and gauge stay aligned.
 
 export function RiskGauge({
   ballsDropped,
@@ -96,12 +92,7 @@ export function RiskGauge({
   ballsDropped: number;
   orientation?: "vertical" | "horizontal";
 }) {
-  const actualRisk = 1 - survivalChanceFromBalls(ballsDropped);
-  const visualPct = riskToVisualPercent(actualRisk);
-  const tierColor =
-    visualPct < 30 ? "#22C55E" : visualPct < 60 ? "#A3E635" : visualPct < 90 ? "#F59E0B" : "#DC2626";
-  const tierLabel =
-    visualPct < 30 ? "קלילה" : visualPct < 60 ? "בינונית" : visualPct < 90 ? "גבוהה" : "פסיכופת";
+  const { label: tierLabel, color: tierColor, visualPct } = riskTierFromBalls(ballsDropped);
 
   if (orientation === "horizontal") {
     return (

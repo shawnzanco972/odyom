@@ -1,6 +1,9 @@
 "use client";
 import { LinkGoogleButton } from "./LinkGoogleButton";
 import { ShareButton } from "./ShareButton";
+import { riskTierFromBalls } from "@/lib/risk";
+import { gameModeGlyph, gameModeLabel } from "@/lib/game-modes";
+import type { GameMode } from "./GameModeTabs";
 
 export interface OutcomeModalProps {
   outcome: "survive" | "death";
@@ -10,19 +13,17 @@ export interface OutcomeModalProps {
   hour: number;
   streak: number;
   score: number;
+  /** Number of slots/items the user played against (drives the risk tier
+   *  display so it matches the in-game gauge exactly). */
+  ballsDropped: number;
+  /** Which mini-game the user picked, so the result line reads
+   *  "המשחק: גלגל הגורלות / קלפים / כוסות / חוטים". */
+  gameMode: GameMode;
   /** UUID of the current user — embedded in share URLs to seed the rescue loop. */
   userId: string | null;
   onProfile: () => void;
   onLeaderboard: () => void;
   onClose: () => void;
-}
-
-type RiskTier = { label: string; fraction: string };
-function riskForHour(h: number): RiskTier {
-  if (h < 11) return { label: "קלילה", fraction: "1/32" };
-  if (h < 15) return { label: "בינונית", fraction: "1/20" };
-  if (h < 19) return { label: "גבוהה", fraction: "1/12" };
-  return { label: "פסיכופת", fraction: "1/2" };
 }
 
 function formatIST(d: Date): string {
@@ -39,9 +40,11 @@ export function OutcomeModal({
   reasonText,
   unlockAt,
   judgementAt,
-  hour,
+  hour: _hour,
   streak,
   score,
+  ballsDropped,
+  gameMode,
   userId,
   onProfile,
   onLeaderboard,
@@ -50,7 +53,11 @@ export function OutcomeModal({
   const isSurvive = outcome === "survive";
   const bgColor = isSurvive ? "#C4EAB4" : "#FECACA";
   const accentBg = isSurvive ? "bg-[#106B01]" : "bg-[#DC2626]";
-  const risk = riskForHour(hour);
+  // Single source of truth — same tier used by the in-game gauge.
+  const risk = riskTierFromBalls(ballsDropped);
+  // Underscore-prefixed `hour` arg retained for backwards-compat with callers
+  // that still pass it; this component no longer uses it directly.
+  void _hour;
 
   return (
     <div
@@ -81,14 +88,20 @@ export function OutcomeModal({
           </h1>
         </div>
 
-        {/* Risk badge */}
-        <div className="mb-4 transform -rotate-1">
+        {/* Risk badge — no fraction; tier matches the in-game gauge */}
+        <div className="mb-2 transform -rotate-1">
           <span
-            className={`inline-block ${accentBg} text-white font-black text-sm sm:text-base px-3.5 py-2 border-[3px] border-ink shadow-[3px_3px_0_0_#0A0A0A] uppercase tracking-wide`}
+            className="inline-block text-white font-black text-sm sm:text-base px-3.5 py-2 border-[3px] border-ink shadow-[3px_3px_0_0_#0A0A0A] uppercase tracking-wide"
+            style={{ backgroundColor: risk.color }}
           >
-            רמת סיכון: {risk.label} ({risk.fraction})
+            רמת סיכון: {risk.label}
           </span>
         </div>
+
+        {/* Chosen-game line — compact so the card still fits one screen */}
+        <p className="mb-4 text-xs sm:text-sm font-black text-ink/80 uppercase tracking-wider">
+          {gameModeGlyph(gameMode)} משחק: {gameModeLabel(gameMode)}
+        </p>
 
         {/* Reason — death shows it big above the card; survive folds it inside */}
         {!isSurvive && (

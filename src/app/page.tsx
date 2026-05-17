@@ -354,6 +354,8 @@ export default function GamePage() {
           hour={mockHour ?? istHour(judgementAt)}
           streak={streak}
           score={score}
+          ballsDropped={slotState.ballsDropped}
+          gameMode={activeGameMode}
           userId={session?.user?.id ?? null}
           onProfile={() => {
             setModalOpen(false);
