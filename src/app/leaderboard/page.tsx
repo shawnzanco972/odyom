@@ -72,7 +72,7 @@ export default async function LeaderboardPage() {
           ))}
           {players.length === 0 && (
             <li className="text-center text-gray-concrete font-bold py-12">
-              עדיין אין שורדים. תהיה הראשון לעלות לטבלה.
+              טבלת הדירוג ריקה. כולם מתו היום או שאף אחד עוד לא קם?
             </li>
           )}
         </ol>

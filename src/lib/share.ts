@@ -36,6 +36,20 @@ export function buildShareText(input: ShareTextInput): string {
   ].join("\n");
 }
 
+export function buildGroupInviteText(groupName: string, slug: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const link = `${base}/groups/${slug}`;
+  return [
+    `פתחתי קבוצה ב'לשרוד את היום' — "${groupName}".`,
+    "",
+    "כנסו לראות למי יש עצבים מברזל ומתי הוא הולך למחוק את הסטריק שלו.",
+    "",
+    `הצטרפו לחבורה ותהמרו על החיים שלכם: ${link}`,
+  ].join("\n");
+}
+
 export type ShareResult = "shared" | "copied" | "failed";
 
 /**

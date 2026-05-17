@@ -12,6 +12,51 @@ export type Database = {
   __InternalSupabase: { PostgrestVersion: "14.5" };
   public: {
     Tables: {
+      groups: {
+        Row: {
+          id: number;
+          slug: string;
+          name: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          slug: string;
+          name: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          slug?: string;
+          name?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      group_members: {
+        Row: {
+          group_id: number;
+          user_id: string;
+          joined_at: string;
+          role: "creator" | "member";
+        };
+        Insert: {
+          group_id: number;
+          user_id: string;
+          joined_at?: string;
+          role?: "creator" | "member";
+        };
+        Update: {
+          group_id?: number;
+          user_id?: string;
+          joined_at?: string;
+          role?: "creator" | "member";
+        };
+        Relationships: [];
+      };
       plays: {
         Row: {
           id: number;
@@ -181,6 +226,21 @@ export function normalizeUserRow(r: RawUserRow): UserRow {
     rescue_pending: r.rescue_pending ?? false,
     has_played_ever: r.has_played_ever ?? false,
   };
+}
+
+export interface GroupRow {
+  id: number;
+  slug: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface GroupMemberRow {
+  group_id: number;
+  user_id: string;
+  joined_at: string;
+  role: "creator" | "member";
 }
 
 export interface PlayRow {

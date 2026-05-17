@@ -10,6 +10,7 @@ import { LinkGoogleButton } from "@/components/LinkGoogleButton";
 import { SuggestionTrigger } from "@/components/SuggestionTrigger";
 import { ShareButton } from "@/components/ShareButton";
 import { SignOutButton } from "@/components/SignOutButton";
+import { GroupsSection } from "@/components/GroupsSection";
 import type { PlayRow } from "@/lib/supabase/types";
 
 function timeAgoHe(iso: string, now: Date): string {
@@ -143,7 +144,7 @@ export default function AccountPage() {
             )}
             {plays && plays.length === 0 && (
               <p className="text-sm font-bold text-gray-concrete">
-                עוד אין היסטוריה. תתחיל לסבול.
+                שקט פה מדי... נראה שלא העזת לסובב את הגלגל היום. ממה אתה מפחד?
               </p>
             )}
             <ul className="flex flex-col gap-2 list-none p-0 max-h-[480px] overflow-y-auto">
@@ -205,18 +206,8 @@ export default function AccountPage() {
               <SuggestionTrigger />
             </div>
 
-            {/* Groups stub */}
-            <div className="bg-white border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A] rounded-xl p-4 opacity-70">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-black text-base">פתח קבוצה סגורה 👥</h3>
-                <span className="bg-ink text-white text-[10px] font-bold px-2 py-0.5">
-                  בקרוב
-                </span>
-              </div>
-              <p className="text-xs text-gray-concrete font-bold">
-                שחק רק נגד החברים שלך. תראה למי באמת יש עצבים.
-              </p>
-            </div>
+            {/* Groups */}
+            <GroupsSection isAnon={isAnon} />
 
             {/* Sign-out (Google-linked only) */}
             {!loading && !isAnon && (

@@ -46,11 +46,11 @@ export function RescueModal({ open, onAcknowledged }: Props) {
               textShadow: "4px 4px 0 #ffffff",
             }}
           >
-            החבר שלך הצטרף! 🛟
+            החבר שלך שרד! 🛟
           </h2>
 
           <p className="text-base md:text-lg font-bold text-ink mb-6">
-            הרצף שלך ניצל וחזר לחיים. שיחקו אותה.
+            הרצף שלך ניצל מחשבון החייאה וחזר לחיים. אל תבזבז אותו!
           </p>
 
           <BrutalButton
