@@ -12,10 +12,10 @@ interface Props {
 
 // Color the madness pill differently based on rank for visual interest.
 function pillStyleForRank(rank: number): string {
-  if (rank === 1) return "bg-tag-pink text-white border-ink";
-  if (rank === 2) return "bg-survive-deep text-white border-ink";
+  if (rank === 1) return "bg-[#BB0022] text-white border-ink";
+  if (rank === 2) return "bg-[#106B01] text-white border-ink";
   if (rank === 3) return "bg-white text-ink border-ink";
-  return "bg-bgsoft text-gray-concrete border-ink";
+  return "bg-[#F9FAFB] text-gray-concrete border-ink";
 }
 
 export function LeaderboardRow({
@@ -28,14 +28,15 @@ export function LeaderboardRow({
       className={[
         "relative overflow-hidden font-rubik flex items-center gap-3 px-4 py-4 rounded-xl",
         isTop
-          ? "bg-rank-gold border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A]"
+          ? "bg-[#FFDB40] border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A]"
           : "bg-white border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A]",
         isMe ? "outline outline-2 outline-survive outline-offset-2" : "",
       ].join(" ")}
     >
-      {/* Corner rank chip — top 3 only (RTL: top-LEFT corner is the visual "leading" corner) */}
+      {/* Corner rank chip — top 3 only. Visual-RIGHT corner in RTL (matches
+          the design reference and sits opposite the score column on the left). */}
       {isTop && (
-        <div className="absolute top-0 left-0 w-9 h-9 bg-ink text-rank-gold flex items-center justify-center rounded-br-xl font-black text-base">
+        <div className="absolute top-0 right-0 w-10 h-10 bg-ink text-[#FFDB40] flex items-center justify-center rounded-bl-xl font-black text-lg z-10 leading-none">
           {rank}
         </div>
       )}
@@ -54,7 +55,7 @@ export function LeaderboardRow({
       <div className="flex-1 min-w-0">
         <div className={`font-black truncate ${isTop ? "text-xl" : "text-base"}`}>
           {display}
-          {isMe && <span className="text-xs text-survive-deep mr-2">(אתה)</span>}
+          {isMe && <span className="text-xs text-[#106B01] mr-2">(אתה)</span>}
         </div>
         <span
           className={[

@@ -24,8 +24,8 @@ export function LeaderboardTabs() {
             className={[
               "flex-1 py-3 px-2 border-2 border-ink rounded-lg font-bold text-sm transition-transform",
               isActive
-                ? "bg-survive-deep text-white shadow-[2px_2px_0_0_#0A0A0A] -translate-y-0.5"
-                : "bg-white text-ink hover:bg-bgsoft active:translate-y-0.5",
+                ? "bg-[#106B01] text-white shadow-[2px_2px_0_0_#0A0A0A] -translate-y-0.5"
+                : "bg-white text-ink hover:bg-[#F9FAFB] active:translate-y-0.5",
               !t.enabled ? "opacity-50 cursor-not-allowed" : "",
             ].join(" ")}
           >

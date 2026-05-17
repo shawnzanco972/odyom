@@ -43,15 +43,17 @@ export function OutcomeModal({
   onSecondary,
 }: OutcomeModalProps) {
   const isSurvive = outcome === "survive";
-  const bgClass = isSurvive ? "bg-survive-bg" : "bg-death-bg";
-  const accentBg = isSurvive ? "bg-survive-deep" : "bg-death";
+  // Inline color avoids any Tailwind JIT/cache miss on custom tokens.
+  const bgColor = isSurvive ? "#C4EAB4" : "#FECACA";
+  const accentBg = isSurvive ? "bg-[#106B01]" : "bg-[#DC2626]";
   const ctaText = isSurvive ? "השווי להמונים" : "הבנתי, שחרר אותי";
   const risk = riskForHour(hour);
 
   return (
     <div
       dir="rtl"
-      className={`fixed inset-0 z-50 ${bgClass} overflow-y-auto animate-[fadein_220ms_ease-out]`}
+      style={{ backgroundColor: bgColor }}
+      className="fixed inset-0 z-50 overflow-y-auto animate-[fadein_220ms_ease-out]"
     >
       {/* Faint background decoration */}
       <div aria-hidden className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
@@ -96,7 +98,7 @@ export function OutcomeModal({
         <div className="w-full max-w-sm bg-white border-[3px] border-ink shadow-[8px_8px_0_0_#0A0A0A] rounded-lg p-6 transform rotate-2 mb-8">
           {isSurvive ? (
             <>
-              <div className="flex items-center justify-center mb-3 text-survive-deep text-5xl">📈</div>
+              <div className="flex items-center justify-center mb-3 text-[#106B01] text-5xl">📈</div>
               <p className="font-black text-2xl text-ink text-center">{reasonText}</p>
               <div className="border-t-2 border-ink my-4" />
               <p className="font-black text-xl text-center">ניקוד סופי: {score.toLocaleString("he-IL")}</p>
@@ -151,7 +153,7 @@ export function OutcomeModal({
         {/* Secondary "back to main" underlined link */}
         <button
           onClick={onSecondary}
-          className="font-bold text-base text-ink underline hover:text-survive-deep transition-colors"
+          className="font-bold text-base text-ink underline hover:text-[#106B01] transition-colors"
         >
           חזור למסך הראשי
         </button>

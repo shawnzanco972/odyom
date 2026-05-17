@@ -26,11 +26,12 @@ export default async function LeaderboardPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-leaderboard-bg pb-28"
+      style={{ backgroundColor: "#F1FDE7" }}
+      className="min-h-screen pb-28"
     >
       {/* Sticky top bar */}
       <header className="sticky top-0 z-30 bg-white border-b-4 border-ink shadow-[0_4px_0_0_#0A0A0A] flex items-center justify-between px-4 py-3 max-w-2xl mx-auto">
-        <Link href="/" className="font-bold text-sm underline hover:text-survive-deep">
+        <Link href="/" className="font-bold text-sm underline hover:text-[#106B01]">
           ← למשחק
         </Link>
         <h1 className="font-black text-xl tracking-tight">לשרוד את היום</h1>
