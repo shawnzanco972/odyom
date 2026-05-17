@@ -22,6 +22,18 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
     return Math.min(6, Math.max(2, c));
   }, [totalSlices]);
 
+  // Pre-pick the skull cup the moment the user commits. Always exactly one:
+  //   death  → trap = chosen
+  //   survive → trap = random non-chosen cup
+  const trapIndex = useMemo(() => {
+    if (chosen === null) return -1;
+    if (outcome === "death") return chosen;
+    const others: number[] = [];
+    for (let i = 0; i < totalSlices; i++) if (i !== chosen) others.push(i);
+    if (others.length === 0) return -1;
+    return others[Math.floor(Math.random() * others.length)];
+  }, [chosen, outcome, totalSlices]);
+
   const handleClick = (i: number) => {
     if (chosen !== null || spin) return;
     setChosen(i);
@@ -59,8 +71,11 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
         >
           {Array.from({ length: totalSlices }, (_, i) => {
             const isChosen = chosen === i;
+            const isTrap = i === trapIndex;
             const lifted = stage === "lift";
-            const reveal = lifted && isChosen;
+            // Reveal: at lift time, all cups raise to show their truth.
+            // The trap cup shows the skull; every other cup shows a safe ball.
+            const reveal = lifted;
             return (
               <button
                 key={i}
@@ -69,7 +84,7 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
                 className="relative w-full h-full flex items-end justify-center"
                 aria-label={`כוס ${i + 1}`}
               >
-                {/* floor / reveal asset */}
+                {/* floor */}
                 <div className="absolute inset-x-1 bottom-1 h-2 bg-[#0A0A0A]" />
                 {reveal && (
                   <div
@@ -80,7 +95,7 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
                       aspectRatio: "1 / 1",
                       borderRadius: "9999px",
                       border: "3px solid #0A0A0A",
-                      backgroundColor: outcome === "death" ? "#DC2626" : "#338822",
+                      backgroundColor: isTrap ? "#DC2626" : "#338822",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -88,7 +103,7 @@ export function CupsGame({ totalSlices, outcome, spin, onResolved, onPlay }: Cup
                       color: "#fff",
                     }}
                   >
-                    {outcome === "death" ? "💀" : ""}
+                    {isTrap ? "💀" : ""}
                   </div>
                 )}
                 {/* cup */}

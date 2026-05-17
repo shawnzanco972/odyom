@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RiskGauge } from "@/components/UrgencyWidgets";
 
 export interface WireCutterProps {
@@ -102,6 +102,18 @@ export function WireCutter({ totalSlices, outcome, spin, onResolved, onPlay }: W
   const [fastCounter, setFastCounter] = useState<number>(3);
 
   const timeouts = useRef<number[]>([]);
+
+  // Pre-pick the bomb wire the moment the user commits. Always exactly one
+  // bomb on the board, even when the player survives — they get to see which
+  // wire would have killed them.
+  const bombIndex = useMemo(() => {
+    if (chosen === null) return -1;
+    if (outcome === "death") return chosen;
+    const others: number[] = [];
+    for (let i = 0; i < nodes.length; i++) if (i !== chosen) others.push(i);
+    if (others.length === 0) return -1;
+    return others[Math.floor(Math.random() * others.length)];
+  }, [chosen, outcome, nodes.length]);
 
   // 3-2-1-0 countdown — kicks off the moment a wire is cut
   useEffect(() => {
@@ -353,11 +365,18 @@ export function WireCutter({ totalSlices, outcome, spin, onResolved, onPlay }: W
     );
   };
 
-  // Render a polyline (with potential cut)
+  // Render a polyline (with potential cut). Bomb wire turns red once the
+  // verdict is on screen so the player sees which wire was actually trapped.
   const renderWire = (n: Node) => {
     const path = computePath(n);
     if (path.length < 2) return null;
-    const color = n.globalIndex % 2 === 0 ? "#338822" : "#5E8052";
+    const isBomb = n.globalIndex === bombIndex;
+    const showBombIdentity = isBomb && coreState === "verdict";
+    const color = showBombIdentity
+      ? "#DC2626"
+      : n.globalIndex % 2 === 0
+        ? "#338822"
+        : "#5E8052";
     const isCut = chosen === n.globalIndex && snap;
     const toStr = (pts: Point[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
 

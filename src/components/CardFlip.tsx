@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface CardFlipProps {
   totalSlices: number;
@@ -17,6 +17,20 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
   const timeouts = useRef<number[]>([]);
 
   const surviveCount = Math.max(0, totalSlices - 1);
+
+  // Pre-pick the joker index the moment the user commits to a card. There is
+  // ALWAYS exactly one joker — either it's the chosen card (death) or it's a
+  // random other card (survive). Memoised on (chosen, outcome) so it doesn't
+  // re-roll mid-reveal.
+  const jokerIndex = useMemo(() => {
+    if (chosen === null) return -1;
+    if (outcome === "death") return chosen;
+    // survive: random non-chosen index
+    const others: number[] = [];
+    for (let i = 0; i < totalSlices; i++) if (i !== chosen) others.push(i);
+    if (others.length === 0) return -1;
+    return others[Math.floor(Math.random() * others.length)];
+  }, [chosen, outcome, totalSlices]);
 
   const handleClick = (i: number) => {
     if (chosen !== null || spin) return;
@@ -61,10 +75,10 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
           {Array.from({ length: totalSlices }, (_, i) => {
             const isChosen = chosen === i;
             const isFlipped = flipped.has(i) || (isChosen && revealChosen);
-            const isDeathReveal = isChosen && revealChosen && outcome === "death";
-            const isSurviveReveal =
-              (isChosen && revealChosen && outcome === "survive") ||
-              (!isChosen && flipped.has(i));
+            // Each card's face is determined by whether IT is the joker, not
+            // by the global outcome — guarantees exactly one joker on screen.
+            const showsJoker = isFlipped && i === jokerIndex;
+            const isHighlight = isChosen && revealChosen;
 
             return (
               <button
@@ -104,15 +118,15 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
                       backfaceVisibility: "hidden",
                       transform: "rotateY(180deg)",
                       backgroundColor: "#FFFFFF",
-                      border: isDeathReveal
+                      border: isHighlight && showsJoker
                         ? "4px solid #DC2626"
-                        : isSurviveReveal
+                        : isHighlight
                           ? "4px solid #106B01"
                           : "3px solid #0A0A0A",
                       boxShadow: "4px 4px 0 0 #0A0A0A",
                     }}
                   >
-                    {isDeathReveal ? (
+                    {showsJoker ? (
                       <>
                         <span className="self-start font-black text-[10px] md:text-xs text-[#DC2626] leading-none">
                           🔴
