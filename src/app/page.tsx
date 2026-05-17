@@ -185,96 +185,89 @@ export default function GamePage() {
     );
   }
 
+  const buttonLabel = (() => {
+    if (authLoading) return "טוען…";
+    if (phase === "locked" && slotState.locked) return "המשחק נפתח ב־08:00";
+    if (phase === "locked" && alreadyPlayedToday) return "חזור מחר ב־08:00";
+    if (phase === "idle") return "סובב את הגלגל";
+    if (phase === "requesting") return "טוען…";
+    if (phase === "spinning") return "הגלגל מסתובב…";
+    return "סיימת להיום";
+  })();
+
   return (
-    <div className="min-h-screen pb-28 md:pb-12 animate-[fadein_300ms_ease-out] bg-white">
+    <div className="min-h-screen pb-28 md:pb-12 animate-[fadein_300ms_ease-out] bg-white" dir="rtl">
       <TopNav />
 
-      {/* Mobile header keeps the streak/clock/score chips */}
+      {/* Mobile-only status chips (keeps streak/clock/score one tap away) */}
       <div className="md:hidden">
         <Header streak={streak} score={score} clock={clockStr} />
       </div>
 
-      <main className="w-full max-w-6xl mx-auto px-4 md:px-8 pt-4 md:pt-8 flex flex-col gap-6">
-        {/* Title row + desktop stats */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="text-center md:text-right">
-            <h1
-              className="font-black text-3xl md:text-5xl tracking-tight leading-none"
-              style={{ textShadow: "3px 3px 0 #ffffff" }}
-            >
-              לשרוד את היום
-            </h1>
-            <p className="text-sm md:text-base text-gray-concrete font-bold mt-1">
-              פלחים על הגלגל: {slotState.ballsDropped} · 🔴 1 · 🟢 {slotState.ballsDropped - 1}
-            </p>
-          </div>
-          {/* Desktop-only quick stats */}
-          <div className="hidden md:flex gap-3 font-rubik">
-            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black">
-              🔥 רצף: {streak}
-            </div>
-            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black tracking-wider">
-              שעה: {clockStr}
-            </div>
-            <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] px-3 py-2 text-sm font-black">
-              🏆 {score.toLocaleString("he-IL")} נק׳
-            </div>
-          </div>
+      {/* ───────────────────────── HERO: WHEEL + BUTTON ─────────────────────────
+          Sized to dominate the initial viewport on both mobile and desktop. */}
+      <section
+        className="
+          flex flex-col items-center justify-center px-4
+          min-h-[calc(100vh-130px)] md:min-h-[calc(100vh-90px)]
+          gap-5 md:gap-7
+        "
+      >
+        {/* Compact title bar */}
+        <div className="text-center">
+          <h1
+            className="font-black text-3xl md:text-5xl tracking-tight leading-none"
+            style={{ textShadow: "3px 3px 0 #ffffff" }}
+          >
+            לשרוד את היום
+          </h1>
+          <p className="text-xs md:text-sm text-gray-concrete font-bold mt-1.5">
+            פלחים על הגלגל: {slotState.ballsDropped} · 🔴 1 · 🟢 {slotState.ballsDropped - 1}
+          </p>
         </div>
 
-        {/* Desktop: 3-column grid (live feed | wheel+gauge | urgency stats).
-            Mobile: stacked. */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 md:gap-8 items-start">
-          {/* Left column (desktop): live feed. Mobile: appears later. */}
-          <div className="hidden md:block">
-            <LiveFeed />
-          </div>
-
-          {/* Wheel + risk gauge cluster */}
-          <div className="flex flex-row-reverse items-center justify-center gap-4 mx-auto">
+        {/* Wheel + integrated risk gauge */}
+        <div className="flex flex-row-reverse items-center justify-center gap-3 md:gap-6 w-full">
+          <div className="flex-1 max-w-[min(640px,90vw,75vh)]">
             <RouletteWheel
               totalSlices={slotState.ballsDropped}
               outcome={verdict?.outcome ?? "survive"}
               spin={phase === "spinning" && spinArmedRef.current}
               onResolved={handleResolved}
             />
-            <RiskGauge ballsDropped={slotState.ballsDropped} />
           </div>
-
-          {/* Right column (desktop): urgency stats. Mobile: appears later. */}
-          <div className="hidden md:flex flex-col gap-3">
-            <SurvivalChance ballsDropped={slotState.ballsDropped} />
-            <NextWheelCountdown />
-          </div>
+          <RiskGauge ballsDropped={slotState.ballsDropped} />
         </div>
 
-        {/* CTA */}
-        <div className="flex justify-center">
-          <BrutalButton
-            variant={phase === "locked" ? "ink" : "survive"}
-            disabled={phase !== "idle" || authLoading}
-            onClick={handleSpin}
-            className="w-full max-w-sm"
-          >
-            {authLoading && "טוען…"}
-            {!authLoading && phase === "locked" && slotState.locked && "המשחק נפתח ב־08:00"}
-            {!authLoading && phase === "locked" && !slotState.locked && alreadyPlayedToday && "חזור מחר ב־08:00"}
-            {!authLoading && phase === "idle" && "סובב את הגלגל"}
-            {!authLoading && phase === "requesting" && "טוען…"}
-            {!authLoading && phase === "spinning" && "הגלגל מסתובב…"}
-            {!authLoading && phase === "resolved" && "סיימת להיום"}
-          </BrutalButton>
-        </div>
+        {/* Spin button — large and unmissable */}
+        <BrutalButton
+          variant={phase === "locked" ? "ink" : "survive"}
+          disabled={phase !== "idle" || authLoading}
+          onClick={handleSpin}
+          className="w-full max-w-md text-xl md:text-2xl py-5"
+        >
+          {buttonLabel}
+        </BrutalButton>
+      </section>
 
-        {/* Mobile-only: urgency widgets stacked below the wheel */}
-        <div className="md:hidden flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <SurvivalChance ballsDropped={slotState.ballsDropped} />
-            <NextWheelCountdown />
+      {/* Visual divider between hero and secondary widgets */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
+        <div className="border-t-4 border-ink/80 my-6" />
+        <p className="text-center text-xs md:text-sm font-black tracking-widest text-gray-concrete uppercase mb-5">
+          מה קורה ברחבי הארץ
+        </p>
+      </div>
+
+      {/* ───────────────────────── SECONDARY: WIDGETS ───────────────────────── */}
+      <section className="max-w-6xl mx-auto px-4 md:px-8 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SurvivalChance ballsDropped={slotState.ballsDropped} />
+          <NextWheelCountdown />
+          <div className="md:col-span-1">
+            <LiveFeed />
           </div>
-          <LiveFeed />
         </div>
-      </main>
+      </section>
 
       {modalOpen && judgementAt && displayOutcome && (
         <OutcomeModal

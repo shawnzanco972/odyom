@@ -224,7 +224,7 @@ export function RouletteWheel({ totalSlices, outcome, spin, onResolved }: Roulet
   return (
     <div
       ref={wrapperRef}
-      className="mx-auto w-full max-w-[520px] flex items-center justify-center"
+      className="mx-auto w-full max-w-[640px] flex items-center justify-center"
     >
       <canvas ref={canvasRef} className="block" />
     </div>
