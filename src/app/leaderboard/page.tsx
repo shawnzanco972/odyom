@@ -8,17 +8,56 @@ import { TopNav } from "@/components/TopNav";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaderboardPage() {
+const USERS_COLS =
+  "id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_at, last_played_date, last_reason, seen_reasons, referrer_id, streak_before_last_death, rescue_pending, has_played_ever";
+
+interface Props {
+  searchParams: Promise<{ group?: string }>;
+}
+
+export default async function LeaderboardPage({ searchParams }: Props) {
+  const { group: groupSlug } = await searchParams;
   const supabase = await getServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: rows } = await supabase
+  // Resolve filter context (if any).
+  let groupName: string | null = null;
+  let memberIds: string[] | null = null;
+  if (groupSlug) {
+    const { data: g } = await supabase
+      .from("groups")
+      .select("id, name")
+      .eq("slug", groupSlug)
+      .single();
+    if (g) {
+      groupName = g.name;
+      const { data: members } = await supabase
+        .from("group_members")
+        .select("user_id")
+        .eq("group_id", g.id);
+      memberIds = (members ?? []).map(m => m.user_id);
+    } else {
+      memberIds = []; // unknown slug → empty list (graceful)
+    }
+  }
+
+  let usersQuery = supabase
     .from("users")
-    .select("id, username, nickname, total_score, current_streak, highest_streak, madness_tag, last_outcome, last_played_at, last_played_date, last_reason, seen_reasons, referrer_id, streak_before_last_death, rescue_pending, has_played_ever")
+    .select(USERS_COLS)
     .order("total_score", { ascending: false })
     .order("highest_streak", { ascending: false })
     .limit(50);
 
+  if (memberIds !== null) {
+    if (memberIds.length === 0) {
+      // Nothing to query — bail with an empty list.
+      usersQuery = usersQuery.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    } else {
+      usersQuery = usersQuery.in("id", memberIds);
+    }
+  }
+
+  const { data: rows } = await usersQuery;
   const players = (rows ?? []).map(normalizeUserRow);
 
   return (
@@ -53,8 +92,29 @@ export default async function LeaderboardPage() {
         </div>
 
         <div className="bg-white border-2 border-ink rounded-xl p-2 shadow-[4px_4px_0_0_#0A0A0A]">
-          <LeaderboardTabs />
+          <LeaderboardTabs currentGroupSlug={groupSlug ?? null} isAuthed={!!user} />
         </div>
+
+        {/* Filtered-by-group banner */}
+        {groupSlug && groupName && (
+          <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] rounded-xl px-4 py-3 flex items-center justify-between font-rubik">
+            <span className="font-bold text-sm">
+              🎯 דירוג בחבורה: <span className="font-black">{groupName}</span>
+            </span>
+            <Link
+              href={`/groups/${groupSlug}`}
+              className="font-bold text-xs underline hover:text-[#106B01]"
+            >
+              לעמוד החבורה →
+            </Link>
+          </div>
+        )}
+
+        {groupSlug && !groupName && (
+          <div className="bg-white border-2 border-ink shadow-[3px_3px_0_0_#0A0A0A] rounded-xl px-4 py-3 text-center font-bold text-sm">
+            החבורה לא נמצאה. <Link href="/leaderboard" className="underline">חזור לדירוג הארצי</Link>
+          </div>
+        )}
 
         <ol className="flex flex-col gap-3 list-none p-0">
           {players.map((p, i) => (
@@ -72,7 +132,9 @@ export default async function LeaderboardPage() {
           ))}
           {players.length === 0 && (
             <li className="text-center text-gray-concrete font-bold py-12">
-              טבלת הדירוג ריקה. כולם מתו היום או שאף אחד עוד לא קם?
+              {groupSlug
+                ? "אין עדיין שורדים בחבורה הזו. הזמן עוד חברים."
+                : "טבלת הדירוג ריקה. כולם מתו היום או שאף אחד עוד לא קם?"}
             </li>
           )}
         </ol>
