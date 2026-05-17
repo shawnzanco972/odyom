@@ -26,6 +26,32 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
       });
       if (error) {
         console.error("[link google failed]", error);
+
+        // The Google identity is already bound to another Supabase user
+        // (typically: user linked once, then tried again from a different
+        // browser/device with a fresh anonymous session). Recover by signing
+        // them into the existing Google-linked account instead of trying to
+        // link the current anonymous one — they lose their anon progress but
+        // they're now on the right account everywhere.
+        if (/identity.*already.*exists|already.*linked/i.test(error.message)) {
+          const ok = window.confirm(
+            "החשבון הזה של Google כבר מקושר אצלנו. רוצה להתחבר אליו ישירות? (המשתמש האנונימי הנוכחי יוחלף.)",
+          );
+          if (ok) {
+            const { error: signInErr } = await supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo: `${window.location.origin}/auth/callback` },
+            });
+            if (signInErr) {
+              window.alert(`Sign-in failed:\n${signInErr.message}`);
+              setBusy(false);
+            }
+            return;
+          }
+          setBusy(false);
+          return;
+        }
+
         const hint =
           /manual linking/i.test(error.message)
             ? "Enable Supabase → Auth → Sign In/Up → 'Allow manual linking'."
