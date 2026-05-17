@@ -38,6 +38,10 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
             "החשבון הזה של Google כבר מקושר אצלנו. רוצה להתחבר אליו ישירות? (המשתמש האנונימי הנוכחי יוחלף.)",
           );
           if (ok) {
+            // CRITICAL: sign out the anon session first. Otherwise Supabase
+            // treats the next signInWithOAuth call as an implicit link attempt
+            // and rejects with the same identity_already_exists error.
+            await supabase.auth.signOut();
             const { error: signInErr } = await supabase.auth.signInWithOAuth({
               provider: "google",
               options: { redirectTo: `${window.location.origin}/auth/callback` },

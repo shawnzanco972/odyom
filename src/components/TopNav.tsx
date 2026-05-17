@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/",            label: "המשחק",  emoji: "🎲" },
   { href: "/leaderboard", label: "טבלת המובילים", emoji: "🏆" },
+  { href: "/account",     label: "אזור אישי", emoji: "👤" },
 ];
 
 export function TopNav({ onOpenManifesto }: { onOpenManifesto?: () => void }) {

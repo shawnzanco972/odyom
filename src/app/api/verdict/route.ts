@@ -147,6 +147,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
       return NextResponse.json({ error: updateErr.message }, { status: 500 });
     }
 
+    // Append to per-play history (profile page reads this). Self-insert RLS
+    // enforces user_id = auth.uid(). Best-effort: don't fail the verdict if
+    // history write somehow errors.
+    await supabase.from("plays").insert({
+      user_id: user.id,
+      played_at: now.toISOString(),
+      played_date: todayKey,
+      outcome,
+      reason: reasonText,
+      total_slices: state.ballsDropped,
+      streak_at_play: newStreak,
+    });
+
     // Trigger streak rescue for the referrer the FIRST time this user plays.
     // Any first play (survive or death) triggers it — pure viral loop.
     if (isFirstEverPlay && userRow.referrer_id) {

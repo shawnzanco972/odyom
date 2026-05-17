@@ -3,9 +3,6 @@ import { getServerClient } from "@/lib/supabase/server";
 import { normalizeUserRow } from "@/lib/supabase/types";
 import { LeaderboardRow } from "@/components/LeaderboardRow";
 import { LeaderboardTabs } from "@/components/LeaderboardTabs";
-import { NicknameEditor } from "@/components/NicknameEditor";
-import { SuggestionTrigger } from "@/components/SuggestionTrigger";
-import { LinkGoogleButton } from "@/components/LinkGoogleButton";
 import { BottomNav } from "@/components/BottomNav";
 import { TopNav } from "@/components/TopNav";
 
@@ -32,7 +29,7 @@ export default async function LeaderboardPage() {
     >
       <TopNav />
 
-      {/* Mobile-only sticky top bar (TopNav is desktop-only) */}
+      {/* Mobile-only sticky top bar */}
       <header className="md:hidden sticky top-0 z-30 bg-white border-b-4 border-ink shadow-[0_4px_0_0_#0A0A0A] flex items-center justify-between px-4 py-3 max-w-2xl mx-auto">
         <Link href="/" className="font-bold text-sm underline hover:text-[#106B01]">
           ← למשחק
@@ -41,60 +38,44 @@ export default async function LeaderboardPage() {
         <span className="text-2xl" aria-hidden>⚡</span>
       </header>
 
-      <main className="w-full max-w-6xl mx-auto px-4 md:px-8 pt-6 md:pt-10 font-rubik">
-        {/* Page hero — unified design: ink text + white text-shadow (brand standard) */}
-        <div className="flex flex-col items-center gap-2 mb-8">
+      <main className="w-full max-w-3xl mx-auto px-4 md:px-6 pt-6 md:pt-10 font-rubik flex flex-col gap-5">
+        {/* Hero */}
+        <div className="flex flex-col items-center gap-2 mb-2 text-center">
           <h2
-            className="font-black text-5xl md:text-7xl uppercase tracking-tighter text-center text-ink leading-none"
+            className="font-black text-4xl md:text-6xl uppercase tracking-tighter text-ink leading-none"
             style={{ textShadow: "4px 4px 0 #ffffff" }}
           >
-            לוח הגורלות
+            טבלת השורדים של עם הנצח
           </h2>
-          <p className="text-sm md:text-base font-bold text-gray-concrete">
-            מי פה הפראייר התורן?
+          <p className="text-sm md:text-base font-bold text-gray-concrete max-w-md">
+            מי שרד הכי הרבה ימים בלי להישבר?
           </p>
         </div>
 
-        {/* Desktop: 2-column layout (controls left, list right). Mobile: stacked. */}
-        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6 md:gap-10 items-start">
-          {/* Sidebar / controls */}
-          <aside className="flex flex-col gap-4">
-            <div className="bg-white border-2 border-ink rounded-xl p-2 shadow-[4px_4px_0_0_#0A0A0A]">
-              <LeaderboardTabs />
-            </div>
-            {user && (
-              <>
-                <NicknameEditor />
-                <div className="flex flex-col gap-2">
-                  <LinkGoogleButton compact />
-                  <SuggestionTrigger />
-                </div>
-              </>
-            )}
-          </aside>
-
-          {/* List */}
-          <ol className="flex flex-col gap-3 list-none p-0">
-            {players.map((p, i) => (
-              <li key={p.id}>
-                <LeaderboardRow
-                  rank={i + 1}
-                  display={p.nickname?.trim() || p.username}
-                  totalScore={p.total_score}
-                  currentStreak={p.current_streak}
-                  highestStreak={p.highest_streak}
-                  madnessTag={p.madness_tag}
-                  isMe={user?.id === p.id}
-                />
-              </li>
-            ))}
-            {players.length === 0 && (
-              <li className="text-center text-gray-concrete font-bold py-12">
-                עדיין אין שחקנים. תהיה הראשון לשרוד!
-              </li>
-            )}
-          </ol>
+        <div className="bg-white border-2 border-ink rounded-xl p-2 shadow-[4px_4px_0_0_#0A0A0A]">
+          <LeaderboardTabs />
         </div>
+
+        <ol className="flex flex-col gap-3 list-none p-0">
+          {players.map((p, i) => (
+            <li key={p.id}>
+              <LeaderboardRow
+                rank={i + 1}
+                display={p.nickname?.trim() || p.username}
+                totalScore={p.total_score}
+                currentStreak={p.current_streak}
+                highestStreak={p.highest_streak}
+                madnessTag={p.madness_tag}
+                isMe={user?.id === p.id}
+              />
+            </li>
+          ))}
+          {players.length === 0 && (
+            <li className="text-center text-gray-concrete font-bold py-12">
+              עדיין אין שורדים. תהיה הראשון לעלות לטבלה.
+            </li>
+          )}
+        </ol>
       </main>
 
       <BottomNav />

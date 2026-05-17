@@ -12,6 +12,39 @@ export type Database = {
   __InternalSupabase: { PostgrestVersion: "14.5" };
   public: {
     Tables: {
+      plays: {
+        Row: {
+          id: number;
+          user_id: string;
+          played_at: string;
+          played_date: string;
+          outcome: "survive" | "death";
+          reason: string;
+          total_slices: number;
+          streak_at_play: number;
+        };
+        Insert: {
+          id?: never;
+          user_id: string;
+          played_at?: string;
+          played_date: string;
+          outcome: "survive" | "death";
+          reason: string;
+          total_slices: number;
+          streak_at_play: number;
+        };
+        Update: {
+          id?: never;
+          user_id?: string;
+          played_at?: string;
+          played_date?: string;
+          outcome?: "survive" | "death";
+          reason?: string;
+          total_slices?: number;
+          streak_at_play?: number;
+        };
+        Relationships: [];
+      };
       user_suggestions: {
         Row: {
           created_at: string;
@@ -148,6 +181,17 @@ export function normalizeUserRow(r: RawUserRow): UserRow {
     rescue_pending: r.rescue_pending ?? false,
     has_played_ever: r.has_played_ever ?? false,
   };
+}
+
+export interface PlayRow {
+  id: number;
+  user_id: string;
+  played_at: string;
+  played_date: string;
+  outcome: "survive" | "death";
+  reason: string;
+  total_slices: number;
+  streak_at_play: number;
 }
 
 export interface UserSuggestionRow {
