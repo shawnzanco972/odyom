@@ -312,6 +312,11 @@ export default function GamePage() {
           streak={streak}
           score={score}
           userId={session?.user?.id ?? null}
+          onProfile={() => {
+            setModalOpen(false);
+            setPhase(devMode ? "idle" : "locked");
+            router.push("/account");
+          }}
           onLeaderboard={() => {
             setModalOpen(false);
             setPhase(devMode ? "idle" : "locked");

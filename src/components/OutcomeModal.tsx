@@ -12,6 +12,7 @@ export interface OutcomeModalProps {
   score: number;
   /** UUID of the current user — embedded in share URLs to seed the rescue loop. */
   userId: string | null;
+  onProfile: () => void;
   onLeaderboard: () => void;
   onClose: () => void;
 }
@@ -42,6 +43,7 @@ export function OutcomeModal({
   streak,
   score,
   userId,
+  onProfile,
   onLeaderboard,
   onClose,
 }: OutcomeModalProps) {
@@ -131,7 +133,16 @@ export function OutcomeModal({
           </span>
         </div>
 
-        {/* DUAL-PILL CTA: share + leaderboard, equal weight, side-by-side */}
+        {/* PRIMARY CTA: profile is the natural next-step — see your full
+            stats + history + share-rescue tools all in one place. */}
+        <button
+          onClick={onProfile}
+          className={`w-full max-w-sm ${accentBg} text-white border-[3px] border-ink rounded-lg py-3.5 px-5 font-black text-lg shadow-[6px_6px_0_0_#0A0A0A] active:translate-x-[-6px] active:translate-y-[6px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-2 mb-3`}
+        >
+          👤 לאזור האישי שלי
+        </button>
+
+        {/* SECONDARY ROW: share + leaderboard, smaller pills */}
         <div className="w-full max-w-sm flex gap-2 mb-4">
           <ShareButton
             outcome={outcome}
@@ -143,9 +154,9 @@ export function OutcomeModal({
           />
           <button
             onClick={onLeaderboard}
-            className={`flex-1 bg-white text-ink border-[3px] border-ink rounded-lg py-2.5 px-4 font-black text-base shadow-[3px_3px_0_0_#0A0A0A] active:translate-x-[-3px] active:translate-y-[3px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-2 whitespace-nowrap`}
+            className="flex-1 bg-white text-ink border-[3px] border-ink rounded-lg py-2.5 px-4 font-black text-base shadow-[3px_3px_0_0_#0A0A0A] active:translate-x-[-3px] active:translate-y-[3px] active:shadow-none transition-transform duration-75 flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            🏆 ראה טבלה
+            🏆 טבלה
           </button>
         </div>
 
@@ -168,10 +179,10 @@ export function OutcomeModal({
           </p>
         )}
 
-        {/* Back-to-main link */}
+        {/* Tertiary: small back-to-main link */}
         <button
           onClick={onClose}
-          className="font-bold text-sm text-ink underline hover:text-[#106B01] transition-colors"
+          className="font-bold text-xs text-ink/60 underline hover:text-[#106B01] transition-colors mt-2"
         >
           חזור למסך הראשי
         </button>
