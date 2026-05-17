@@ -13,11 +13,15 @@ import { TopNav } from "@/components/TopNav";
 import { ManifestoModal } from "@/components/ManifestoModal";
 import { RescueModal } from "@/components/RescueModal";
 import { LinkGoogleButton } from "@/components/LinkGoogleButton";
+import { GameModeTabs, type GameMode } from "@/components/GameModeTabs";
+import { CardFlip } from "@/components/CardFlip";
+import { CupsGame } from "@/components/CupsGame";
+import { WireCutter } from "@/components/WireCutter";
 import {
+  CommunitySurvivalIndex,
   LiveFeed,
   NextWheelCountdown,
   RiskGauge,
-  SurvivalChance,
 } from "@/components/UrgencyWidgets";
 import { useUser } from "@/components/AuthProvider";
 import {
@@ -102,6 +106,7 @@ export default function GamePage() {
   const initialLocked = slotState.locked || alreadyPlayedToday;
 
   const [phase, setPhase] = useState<Phase>("idle");
+  const [activeGameMode, setActiveGameMode] = useState<GameMode>("wheel");
   const [verdict, setVerdict] = useState<VerdictResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [judgementAt, setJudgementAt] = useState<Date | null>(null);
@@ -254,28 +259,69 @@ export default function GamePage() {
           </p>
         </div>
 
-        {/* Wheel + integrated risk gauge */}
-        <div className="flex flex-row-reverse items-center justify-center gap-3 md:gap-6 w-full">
-          <div className="flex-1 max-w-[min(640px,90vw,75vh)]">
-            <RouletteWheel
-              totalSlices={slotState.ballsDropped}
-              outcome={verdict?.outcome ?? "survive"}
-              spin={phase === "spinning" && spinArmedRef.current}
-              onResolved={handleResolved}
-            />
-          </div>
-          <RiskGauge ballsDropped={slotState.ballsDropped} />
+        {/* TOP — next-wheel countdown + global Risk Gauge above the arena */}
+        <div className="w-full max-w-md flex flex-col gap-3">
+          <NextWheelCountdown />
+          <RiskGauge ballsDropped={slotState.ballsDropped} orientation="horizontal" />
         </div>
 
-        {/* Spin button — large and unmissable */}
-        <BrutalButton
-          variant={phase === "locked" ? "ink" : "survive"}
-          disabled={phase !== "idle" || authLoading}
-          onClick={handleSpin}
-          className="w-full max-w-md text-xl md:text-2xl py-5"
-        >
-          {buttonLabel}
-        </BrutalButton>
+        {/* Mode selector — visible only while idle */}
+        {phase === "idle" && !alreadyPlayedToday && (
+          <GameModeTabs active={activeGameMode} onChange={setActiveGameMode} />
+        )}
+
+        {/* MIDDLE — the arcade arena */}
+        <div className="flex items-center justify-center w-full">
+          <div className="flex-1 max-w-[min(640px,90vw,75vh)]">
+            {activeGameMode === "wheel" && (
+              <RouletteWheel
+                totalSlices={slotState.ballsDropped}
+                outcome={verdict?.outcome ?? "survive"}
+                spin={phase === "spinning" && spinArmedRef.current}
+                onResolved={handleResolved}
+              />
+            )}
+            {activeGameMode === "cards" && (
+              <CardFlip
+                totalSlices={slotState.ballsDropped}
+                outcome={verdict?.outcome ?? "survive"}
+                spin={phase === "spinning" && spinArmedRef.current}
+                onResolved={handleResolved}
+                onPlay={handleSpin}
+              />
+            )}
+            {activeGameMode === "cups" && (
+              <CupsGame
+                totalSlices={slotState.ballsDropped}
+                outcome={verdict?.outcome ?? "survive"}
+                spin={phase === "spinning" && spinArmedRef.current}
+                onResolved={handleResolved}
+                onPlay={handleSpin}
+              />
+            )}
+            {activeGameMode === "wires" && (
+              <WireCutter
+                totalSlices={slotState.ballsDropped}
+                outcome={verdict?.outcome ?? "survive"}
+                spin={phase === "spinning" && spinArmedRef.current}
+                onResolved={handleResolved}
+                onPlay={handleSpin}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Spin button — only for wheel mode */}
+        {activeGameMode === "wheel" && (
+          <BrutalButton
+            variant={phase === "locked" ? "ink" : "survive"}
+            disabled={phase !== "idle" || authLoading}
+            onClick={handleSpin}
+            className="w-full max-w-md text-xl md:text-2xl py-5"
+          >
+            {buttonLabel}
+          </BrutalButton>
+        )}
       </section>
 
       {/* Anonymous → Google upgrade prompt (only renders when user is anon) */}
@@ -293,12 +339,9 @@ export default function GamePage() {
 
       {/* ───────────────────────── SECONDARY: WIDGETS ───────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 md:px-8 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SurvivalChance ballsDropped={slotState.ballsDropped} />
-          <NextWheelCountdown />
-          <div className="md:col-span-1">
-            <LiveFeed />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CommunitySurvivalIndex />
+          <LiveFeed />
         </div>
       </section>
 

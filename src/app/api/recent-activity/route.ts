@@ -37,7 +37,13 @@ export async function GET(): Promise<NextResponse<RecentActivityResponse>> {
       playedAt: r.last_played_at!,
     }));
 
-  const survivorsToday = (data ?? []).filter(r => r.last_outcome === "survive").length;
+  const { count: survivorsCount } = await supabase
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .eq("last_played_date", today)
+    .eq("last_outcome", "survive");
+
+  const survivorsToday = survivorsCount ?? 0;
 
   return NextResponse.json({
     plays,

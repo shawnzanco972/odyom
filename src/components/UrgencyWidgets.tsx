@@ -5,21 +5,52 @@ import { minutesUntilNextDrop, survivalChanceFromBalls } from "@/lib/time";
 import type { RecentActivityResponse } from "@/app/api/recent-activity/route";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Survival Chance card
+// Community Survival Index — live DB-driven percentage of survivors today
 
-export function SurvivalChance({ ballsDropped }: { ballsDropped: number }) {
-  const pct = survivalChanceFromBalls(ballsDropped) * 100;
+export function CommunitySurvivalIndex() {
+  const [data, setData] = useState<{ survivorsToday: number; totalToday: number } | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/recent-activity", { cache: "no-store" });
+        if (res.ok) {
+          const j = (await res.json()) as RecentActivityResponse;
+          setData({ survivorsToday: j.survivorsToday, totalToday: j.totalToday });
+        }
+      } catch {}
+    };
+    fetchData();
+    const id = window.setInterval(fetchData, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const pct =
+    data && data.totalToday > 0
+      ? Math.round((data.survivorsToday / data.totalToday) * 100)
+      : null;
+
   return (
     <div
       dir="rtl"
       className="bg-white border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A] rounded-xl p-4 font-rubik flex flex-col items-center justify-center"
     >
       <div className="text-xs font-bold text-gray-concrete uppercase tracking-wider mb-1">
-        סיכויי הישרדות
+        מדד השורדים
       </div>
-      <div className="font-black text-4xl text-[#106B01] tabular-nums">
-        {pct.toFixed(1)}%
+      <div className="font-black text-2xl md:text-3xl text-ink text-center tabular-nums">
+        {pct === null ? "טוען…" : (
+          <>
+            <span className="text-[#106B01]">{pct}%</span>{" "}
+            מהישראלים שרדו את היום 🛡️
+          </>
+        )}
       </div>
+      {data && data.totalToday > 0 && (
+        <div className="text-[11px] font-bold text-gray-concrete mt-1 tabular-nums">
+          {data.survivorsToday} מתוך {data.totalToday}
+        </div>
+      )}
     </div>
   );
 }
@@ -58,13 +89,55 @@ export function NextWheelCountdown() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Vertical risk gauge — sits beside the wheel showing how lethal "now" is
 
-export function RiskGauge({ ballsDropped }: { ballsDropped: number }) {
-  const deathPct = (1 - survivalChanceFromBalls(ballsDropped)) * 100;
-  // Color by tier
+// Global mapping: actual server risk of 0.5 (50%) maps to a fully bleeding gauge.
+// visualPercentage = (actualRisk / 0.5) * 100
+export function riskToVisualPercent(actualRisk: number): number {
+  return Math.min(100, Math.max(0, (actualRisk / 0.5) * 100));
+}
+
+export function RiskGauge({
+  ballsDropped,
+  orientation = "vertical",
+}: {
+  ballsDropped: number;
+  orientation?: "vertical" | "horizontal";
+}) {
+  const actualRisk = 1 - survivalChanceFromBalls(ballsDropped);
+  const visualPct = riskToVisualPercent(actualRisk);
   const tierColor =
-    deathPct < 15 ? "#22C55E" : deathPct < 30 ? "#A3E635" : deathPct < 45 ? "#F59E0B" : "#DC2626";
+    visualPct < 30 ? "#22C55E" : visualPct < 60 ? "#A3E635" : visualPct < 90 ? "#F59E0B" : "#DC2626";
   const tierLabel =
-    deathPct < 15 ? "קלילה" : deathPct < 30 ? "בינונית" : deathPct < 45 ? "גבוהה" : "פסיכופת";
+    visualPct < 30 ? "קלילה" : visualPct < 60 ? "בינונית" : visualPct < 90 ? "גבוהה" : "פסיכופת";
+
+  if (orientation === "horizontal") {
+    return (
+      <div
+        dir="rtl"
+        className="font-rubik w-full flex items-center gap-3 select-none"
+        aria-label={`רמת סיכון: ${tierLabel}`}
+      >
+        <div className="text-[10px] font-black uppercase tracking-widest text-gray-concrete shrink-0">
+          סיכון
+        </div>
+        <div className="relative flex-1 h-4 bg-white border-2 border-ink rounded-full overflow-hidden shadow-[3px_3px_0_0_#0A0A0A]">
+          <div
+            className="absolute inset-y-0 right-0 transition-all duration-700"
+            style={{ width: `${visualPct}%`, backgroundColor: tierColor }}
+          />
+          {[25, 50, 75].map(t => (
+            <div
+              key={t}
+              className="absolute inset-y-0 border-r border-ink/40"
+              style={{ right: `${t}%` }}
+            />
+          ))}
+        </div>
+        <div className="text-xs font-black whitespace-nowrap shrink-0" style={{ color: tierColor }}>
+          {tierLabel}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -78,12 +151,10 @@ export function RiskGauge({ ballsDropped }: { ballsDropped: number }) {
       <div
         className="relative w-7 h-56 bg-white border-2 border-ink rounded-full overflow-hidden shadow-[4px_4px_0_0_#0A0A0A]"
       >
-        {/* Fill from bottom — height represents current death odds */}
         <div
           className="absolute inset-x-0 bottom-0 transition-all duration-700"
-          style={{ height: `${Math.min(100, deathPct)}%`, backgroundColor: tierColor }}
+          style={{ height: `${visualPct}%`, backgroundColor: tierColor }}
         />
-        {/* Tick marks */}
         {[25, 50, 75].map(t => (
           <div
             key={t}
@@ -92,11 +163,8 @@ export function RiskGauge({ ballsDropped }: { ballsDropped: number }) {
           />
         ))}
       </div>
-      <div className="text-xs font-black text-ink whitespace-nowrap" style={{ color: tierColor }}>
+      <div className="text-xs font-black whitespace-nowrap" style={{ color: tierColor }}>
         {tierLabel}
-      </div>
-      <div className="text-[10px] font-bold text-gray-concrete tabular-nums">
-        {deathPct.toFixed(0)}%
       </div>
     </div>
   );
