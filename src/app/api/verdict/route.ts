@@ -5,7 +5,7 @@ import {
   istHour,
   todayKeyIST,
 } from "@/lib/time";
-import { pickDeath, pickSurvive } from "@/lib/content";
+import { pickReason } from "@/lib/content";
 import { madnessTagForStreak } from "@/lib/madness";
 import { getServerClient } from "@/lib/supabase/server";
 import { normalizeUserRow } from "@/lib/supabase/types";
@@ -103,8 +103,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<VerdictRespon
     outcome = Math.random() < deathOdds ? "death" : "survive";
   }
   const hour = mockHour ?? istHour(now);
-  const reasonText = outcome === "death" ? pickDeath() : pickSurvive(hour);
-  const fallbackReasonText = outcome === "death" ? pickSurvive(hour) : pickDeath();
+  // Both reasons fetched via the anti-drought chain so the modal has a
+  // matching fallback if the physical simulation ever disagrees with the
+  // server outcome.
+  const [reasonText, fallbackReasonText] = await Promise.all([
+    pickReason(supabase, outcome, hour),
+    pickReason(supabase, outcome === "death" ? "survive" : "death", hour),
+  ]);
 
   const isFirstEverPlay = !userRow.has_played_ever;
   const isDeath = outcome === "death";

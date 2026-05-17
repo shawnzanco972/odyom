@@ -90,6 +90,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      game_sentences: {
+        Row: {
+          id: number;
+          text: string;
+          type: string; // "survive" | "death"
+          time_slot: string | null; // "morning" | "noon" | "afternoon" | "night" | "general"
+          status: string | null; // "pending" | "approved" | "rejected"
+          created_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          text: string;
+          type: string;
+          time_slot?: string | null;
+          status?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          text?: string;
+          type?: string;
+          time_slot?: string | null;
+          status?: string | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
       user_suggestions: {
         Row: {
           created_at: string;
