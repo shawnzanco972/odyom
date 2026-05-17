@@ -26,7 +26,13 @@ export function LinkGoogleButton({ compact = false }: { compact?: boolean }) {
       });
       if (error) {
         console.error("[link google failed]", error);
-        window.alert(`Google linking failed:\n${error.message}\n\nCheck Supabase → Auth → URL Configuration → Redirect URLs.`);
+        const hint =
+          /manual linking/i.test(error.message)
+            ? "Enable Supabase → Auth → Sign In/Up → 'Allow manual linking'."
+            : /redirect/i.test(error.message)
+            ? "Check Supabase → Auth → URL Configuration → Redirect URLs."
+            : "Check the Supabase Auth settings.";
+        window.alert(`Google linking failed:\n${error.message}\n\n${hint}`);
         setBusy(false);
         return;
       }
