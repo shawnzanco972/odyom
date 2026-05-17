@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RiskGauge } from "@/components/UrgencyWidgets";
+import { assignSlotPoints } from "@/lib/risk";
 
 export interface WireCutterProps {
   totalSlices: number;
@@ -9,36 +10,17 @@ export interface WireCutterProps {
   spin: boolean;
   onResolved: (o: "survive" | "death") => void;
   onPlay?: (chosenIndex: number) => void;
+  /** Server-assigned green slot values (length = totalSlices-1). */
+  slotPoints?: number[];
+  /** Value the chosen safe wire should display on survive — matches server baseValue. */
+  baseValue?: number;
   /** Awarded points (baseValue + riskBonus) shown floating up over the
-   *  cut wire's terminal on survive. */
+   *  cut switch on survive. */
   awardedPoints?: number;
 }
 
-type Panel = "T" | "R" | "B" | "L";
-type Node = { panel: Panel; indexInPanel: number; panelCount: number; globalIndex: number; label: number };
 type Point = { x: number; y: number };
-type Rect = { left: number; right: number; top: number; bottom: number };
 type CoreState = "idle" | "counting" | "verdict";
-
-function buildNodes(total: number): Node[] {
-  const n = Math.min(32, Math.max(2, total));
-  const panels: Panel[] = ["T", "R", "B", "L"];
-  const counters: Record<Panel, number> = { T: 0, R: 0, B: 0, L: 0 };
-  for (let i = 0; i < n; i++) counters[panels[i % 4]]++;
-  const seen: Record<Panel, number> = { T: 0, R: 0, B: 0, L: 0 };
-  const out: Node[] = [];
-  for (let i = 0; i < n; i++) {
-    const p = panels[i % 4];
-    out.push({
-      panel: p,
-      indexInPanel: seen[p]++,
-      panelCount: counters[p],
-      globalIndex: i,
-      label: i + 1,
-    });
-  }
-  return out;
-}
 
 function PliersIcon({ size = 44, clamped = false }: { size?: number; clamped?: boolean }) {
   const jawAngle = clamped ? 2 : 14;
@@ -76,26 +58,20 @@ function PliersIcon({ size = 44, clamped = false }: { size?: number; clamped?: b
 }
 
 export function WireCutter({
-  totalSlices, outcome, spin, onResolved, onPlay, awardedPoints,
+  totalSlices, outcome, spin, onResolved, onPlay, slotPoints, baseValue, awardedPoints,
 }: WireCutterProps) {
-  const nodes = buildNodes(totalSlices);
-  const safeCount = Math.max(0, Math.min(32, totalSlices) - 1);
+  const n = Math.min(32, Math.max(2, totalSlices));
+  const safeCount = n - 1;
+  // 32 → 8 cols, 16 → 4, 9..16 → 4, 5..8 → 3, 4 → 2, 2 → 2
+  const cols = Math.min(8, Math.max(2, Math.ceil(Math.sqrt(n))));
 
   const arenaRef = useRef<HTMLDivElement | null>(null);
-  const coreRef = useRef<HTMLDivElement | null>(null);
-  const topPanelRef = useRef<HTMLDivElement | null>(null);
-  const bottomPanelRef = useRef<HTMLDivElement | null>(null);
-  const leftPanelRef = useRef<HTMLDivElement | null>(null);
-  const rightPanelRef = useRef<HTMLDivElement | null>(null);
+  const bombFlangeRef = useRef<HTMLDivElement | null>(null);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const [wireEnds, setWireEnds] = useState<Point[]>([]);
-  const [coreRect, setCoreRect] = useState<Rect>({ left: 40, right: 60, top: 40, bottom: 60 });
-  const [panelRects, setPanelRects] = useState<{ T: Rect; B: Rect; L: Rect; R: Rect }>({
-    T: { left: 0, right: 100, top: 0, bottom: 30 },
-    B: { left: 0, right: 100, top: 70, bottom: 100 },
-    L: { left: 0, right: 30, top: 30, bottom: 70 },
-    R: { left: 70, right: 100, top: 30, bottom: 70 },
+  const [switchEnds, setSwitchEnds] = useState<Point[]>([]); // viewBox %, top-center of each button
+  const [bombFlange, setBombFlange] = useState<{ left: number; right: number; y: number }>({
+    left: 21, right: 79, y: 38,
   });
   const [cutterPx, setCutterPx] = useState<Point>({ x: 0, y: 0 });
   const [cutterOff, setCutterOff] = useState(false);
@@ -108,17 +84,39 @@ export function WireCutter({
 
   const timeouts = useRef<number[]>([]);
 
-  // Pre-pick the bomb wire the moment the user commits. Always exactly one
-  // bomb on the board, even when the player survives — they get to see which
-  // wire would have killed them.
+  // Pre-pick the bomb wire on commit — exactly one bomb, always.
   const bombIndex = useMemo(() => {
     if (chosen === null) return -1;
     if (outcome === "death") return chosen;
     const others: number[] = [];
-    for (let i = 0; i < nodes.length; i++) if (i !== chosen) others.push(i);
+    for (let i = 0; i < n; i++) if (i !== chosen) others.push(i);
     if (others.length === 0) return -1;
     return others[Math.floor(Math.random() * others.length)];
-  }, [chosen, outcome, nodes.length]);
+  }, [chosen, outcome, n]);
+
+  // Local fallback pool for idle preview before the server returns.
+  const previewPoints = useMemo(() => assignSlotPoints(n), [n]);
+  const pointsPool = slotPoints ?? previewPoints;
+
+  // Per-switch value map (same shape as CardFlip): skip the bomb, assign pool
+  // values 1-to-1 to the safe switches. On survive, force the chosen switch's
+  // value to `baseValue` so the on-screen number matches what the modal awards.
+  const switchValueByIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    if (chosen === null) return map;
+    let cursor = 0;
+    for (let i = 0; i < n; i++) {
+      if (i === bombIndex) continue;
+      if (i === chosen && outcome === "survive" && typeof baseValue === "number") {
+        map.set(i, baseValue);
+        cursor++;
+        continue;
+      }
+      const v = pointsPool[cursor++];
+      if (typeof v === "number") map.set(i, v);
+    }
+    return map;
+  }, [chosen, bombIndex, n, pointsPool, outcome, baseValue]);
 
   // 3-2-1-0 countdown — kicks off the moment a wire is cut
   useEffect(() => {
@@ -134,50 +132,46 @@ export function WireCutter({
     return () => window.clearInterval(id);
   }, [chosen]);
 
+  // Bomb-bottom attachment x in viewBox %, evenly spread across flange
+  const bombAttach = useCallback(
+    (i: number): Point => {
+      const pad = 1.2;
+      const w = bombFlange.right - bombFlange.left;
+      const x = bombFlange.left + pad + ((w - 2 * pad) * (i + 0.5)) / n;
+      return { x, y: bombFlange.y };
+    },
+    [bombFlange, n],
+  );
+
   const measure = useCallback(() => {
     const arena = arenaRef.current;
-    const core = coreRef.current;
-    if (!arena || !core) return;
+    if (!arena) return;
     const sRect = arena.getBoundingClientRect();
-    const toPct = (r: DOMRect): Rect => ({
-      left: ((r.left - sRect.left) / sRect.width) * 100,
-      right: ((r.right - sRect.left) / sRect.width) * 100,
-      top: ((r.top - sRect.top) / sRect.height) * 100,
-      bottom: ((r.bottom - sRect.top) / sRect.height) * 100,
-    });
-    const cRect = core.getBoundingClientRect();
-    const coreR = toPct(cRect);
-    setCoreRect(coreR);
-
-    const T = topPanelRef.current?.getBoundingClientRect();
-    const B = bottomPanelRef.current?.getBoundingClientRect();
-    const L = leftPanelRef.current?.getBoundingClientRect();
-    const R = rightPanelRef.current?.getBoundingClientRect();
-    if (T && B && L && R) {
-      setPanelRects({ T: toPct(T), B: toPct(B), L: toPct(L), R: toPct(R) });
+    const flange = bombFlangeRef.current?.getBoundingClientRect();
+    if (flange) {
+      setBombFlange({
+        left: ((flange.left - sRect.left) / sRect.width) * 100,
+        right: ((flange.right - sRect.left) / sRect.width) * 100,
+        y: ((flange.bottom - sRect.top) / sRect.height) * 100,
+      });
     }
-
-    const ends: Point[] = btnRefs.current.slice(0, nodes.length).map((el) => {
-      if (!el) return { x: 50, y: 50 };
+    const ends: Point[] = btnRefs.current.slice(0, n).map((el) => {
+      if (!el) return { x: 50, y: 80 };
       const r = el.getBoundingClientRect();
       return {
         x: ((r.left + r.width / 2 - sRect.left) / sRect.width) * 100,
-        y: ((r.top + r.height / 2 - sRect.top) / sRect.height) * 100,
+        y: ((r.top - sRect.top) / sRect.height) * 100,
       };
     });
-    setWireEnds(ends);
+    setSwitchEnds(ends);
 
-    if (chosen === null) {
-      const coreCenterPx = {
-        x: cRect.left + cRect.width / 2 - sRect.left,
-        y: cRect.top + cRect.height / 2 - sRect.top,
-      };
+    if (chosen === null && flange) {
       setCutterPx({
-        x: coreCenterPx.x + cRect.width * 0.5,
-        y: coreCenterPx.y - cRect.height * 0.55,
+        x: flange.right - sRect.left + 24,
+        y: flange.top - sRect.top - 8,
       });
     }
-  }, [nodes.length, chosen]);
+  }, [n, chosen]);
 
   useLayoutEffect(() => {
     measure();
@@ -191,89 +185,43 @@ export function WireCutter({
     return () => ro.disconnect();
   }, [measure]);
 
-  // Compute polyline points (in viewBox %) for each node so wires never cross the bomb
-  const computePath = useCallback(
-    (n: Node): Point[] => {
-      const end = wireEnds[n.globalIndex];
-      if (!end) return [];
-      const pad = 1.2;
-      const insetX = coreRect.left + pad + ((coreRect.right - coreRect.left - 2 * pad) * (n.indexInPanel + 0.5)) / n.panelCount;
-      const insetY = coreRect.top + pad + ((coreRect.bottom - coreRect.top - 2 * pad) * (n.indexInPanel + 0.5)) / n.panelCount;
-
-      if (n.panel === "T") {
-        const corridorY = (panelRects.T.bottom + coreRect.top) / 2;
-        return [
-          { x: end.x, y: end.y },
-          { x: end.x, y: corridorY },
-          { x: insetX, y: corridorY },
-          { x: insetX, y: coreRect.top },
-        ];
-      }
-      if (n.panel === "B") {
-        const corridorY = (coreRect.bottom + panelRects.B.top) / 2;
-        return [
-          { x: end.x, y: end.y },
-          { x: end.x, y: corridorY },
-          { x: insetX, y: corridorY },
-          { x: insetX, y: coreRect.bottom },
-        ];
-      }
-      if (n.panel === "L") {
-        // route vertically alongside bomb's left, attach to top edge
-        const corridorX = (panelRects.L.right + coreRect.left) / 2;
-        const corridorY = (panelRects.T.bottom + coreRect.top) / 2;
-        return [
-          { x: end.x, y: end.y },
-          { x: corridorX, y: end.y },
-          { x: corridorX, y: corridorY },
-          { x: insetX, y: corridorY },
-          { x: insetX, y: coreRect.top },
-        ];
-      }
-      // R
-      const corridorX = (coreRect.right + panelRects.R.left) / 2;
-      const corridorY = (panelRects.T.bottom + coreRect.top) / 2;
-      return [
-        { x: end.x, y: end.y },
-        { x: corridorX, y: end.y },
-        { x: corridorX, y: corridorY },
-        { x: insetX, y: corridorY },
-        { x: insetX, y: coreRect.top },
-      ];
+  // Cubic Bezier path string with vertical droop control points
+  const wirePath = useCallback(
+    (i: number): string => {
+      const a = bombAttach(i);
+      const b = switchEnds[i];
+      if (!b) return "";
+      const drop = Math.max(4, (b.y - a.y) * 0.5);
+      return `M ${a.x},${a.y} C ${a.x},${a.y + drop} ${b.x},${b.y - drop} ${b.x},${b.y}`;
     },
-    [wireEnds, coreRect, panelRects],
+    [bombAttach, switchEnds],
   );
 
-  // Convert a path's last segment midpoint to pixel coords (for pliers target)
-  const lastSegMidPx = useCallback(
-    (path: Point[]): Point => {
+  // Pliers target: midpoint of wire i in pixel coords
+  const wireMidPx = useCallback(
+    (i: number): Point => {
       const arena = arenaRef.current;
-      if (!arena || path.length < 2) return cutterPx;
+      const b = switchEnds[i];
+      if (!arena || !b) return cutterPx;
+      const a = bombAttach(i);
       const sRect = arena.getBoundingClientRect();
-      const a = path[path.length - 2];
-      const b = path[path.length - 1];
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2;
       return { x: (mx / 100) * sRect.width, y: (my / 100) * sRect.height };
     },
-    [cutterPx],
+    [bombAttach, switchEnds, cutterPx],
   );
 
-  const handleClick = (globalIdx: number) => {
+  const handleClick = (i: number) => {
     if (chosen !== null || spin) return;
-    setChosen(globalIdx);
-    onPlay?.(globalIdx);
-    const node = nodes.find((n) => n.globalIndex === globalIdx);
-    if (node) {
-      const path = computePath(node);
-      setCutterPx(lastSegMidPx(path));
-    }
+    setChosen(i);
+    onPlay?.(i);
+    setCutterPx(wireMidPx(i));
   };
 
-  // Resolution sequence: countdown finishes → clamp → snap → hold → verdict shown → hold → onResolved
+  // Resolution: countdown → clamp → snap → verdict → onResolved
   useEffect(() => {
     if (!spin || chosen === null) return;
-    // wait for the 3→0 countdown to finish before clamping
     const countdownLeft = Math.max(0, fastCounter * 300);
     const clampAt = countdownLeft + 80;
     const snapAt = clampAt + 230;
@@ -293,7 +241,6 @@ export function WireCutter({
       timeouts.current.forEach((id) => window.clearTimeout(id));
       timeouts.current = [];
     };
-    // intentionally omit fastCounter from deps so we don't reset the chain mid-flight
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spin, chosen, outcome, onResolved]);
 
@@ -324,116 +271,71 @@ export function WireCutter({
       );
     }
     return (
-      <span className="font-mono font-black text-2xl md:text-4xl tracking-widest text-ink">
+      <span className="font-mono font-black text-3xl md:text-5xl tracking-widest text-ink">
         {clockText}
       </span>
     );
   })();
 
-  const renderPanelButtons = (panel: Panel) => {
-    const panelNodes = nodes.filter((n) => n.panel === panel);
-    const isSide = panel === "L" || panel === "R";
-    const layout = isSide
-      ? "flex flex-col flex-wrap items-center justify-center gap-1.5 p-2"
-      : "flex flex-row flex-wrap items-center justify-center gap-1.5 p-2";
-    return (
-      <div className={`w-full h-full ${layout}`}>
-
-        {panelNodes.map((n) => {
-          const disabled = chosen !== null;
-          const isChosen = chosen === n.globalIndex;
-          return (
-            <button
-              key={n.globalIndex}
-              ref={(el) => {
-                btnRefs.current[n.globalIndex] = el;
-              }}
-              onClick={() => handleClick(n.globalIndex)}
-              disabled={disabled}
-              aria-label={`חוט ${n.label}`}
-              className={[
-                "rounded-full aspect-square w-9 h-9 md:w-11 md:h-11",
-                "border-[3px] border-[#0A0A0A] font-black text-sm md:text-base bg-white text-ink",
-                "flex items-center justify-center select-none transition-transform",
-                disabled
-                  ? isChosen
-                    ? "opacity-100 shadow-[0_0_0_0_#0A0A0A]"
-                    : "opacity-40 cursor-not-allowed shadow-none"
-                  : "shadow-[3px_3px_0_0_#0A0A0A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#0A0A0A] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[0_0_0_0_#0A0A0A] cursor-pointer",
-              ].join(" ")}
-            >
-              {n.label}
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Render a polyline (with potential cut). Bomb wire turns red once the
-  // verdict is on screen so the player sees which wire was actually trapped.
-  const renderWire = (n: Node) => {
-    const path = computePath(n);
-    if (path.length < 2) return null;
-    const isBomb = n.globalIndex === bombIndex;
+  // Render a single wire (cut → two halves with retracting dash offset)
+  const renderWire = (i: number) => {
+    const d = wirePath(i);
+    if (!d) return null;
+    const isBomb = i === bombIndex;
     const showBombIdentity = isBomb && coreState === "verdict";
     const color = showBombIdentity
       ? "#DC2626"
-      : n.globalIndex % 2 === 0
+      : i % 2 === 0
         ? "#338822"
         : "#5E8052";
-    const isCut = chosen === n.globalIndex && snap;
-    const toStr = (pts: Point[]) => pts.map((p) => `${p.x},${p.y}`).join(" ");
+    const isCut = chosen === i && snap;
 
     if (!isCut) {
       return (
-        <polyline
-          key={n.globalIndex}
-          points={toStr(path)}
+        <path
+          key={i}
+          d={d}
           fill="none"
           stroke={color}
-          strokeWidth={1.2}
+          strokeWidth={1.5}
           strokeLinecap="round"
-          strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
         />
       );
     }
-    // cut at midpoint of last segment
-    const a = path[path.length - 2];
-    const b = path[path.length - 1];
-    const mx = (a.x + b.x) / 2;
-    const my = (a.y + b.y) / 2;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
-    const ux = dx / len;
-    const uy = dy / len;
-    const retract = 2.5;
-    const half1 = [...path.slice(0, -1), { x: mx - ux * retract, y: my - uy * retract }];
-    const half2: Point[] = [
-      { x: mx + ux * retract, y: my + uy * retract },
-      b,
-    ];
+    // Two halves split at param t=0.5, each retracts via stroke-dashoffset.
+    // We approximate by drawing the same full path twice with dasharray
+    // pathLength=100 — first half visible [0..50] retracts to [0..30],
+    // second half [50..100] retracts to [70..100].
     return (
-      <g key={n.globalIndex} style={{ transition: "all 250ms ease-out" }}>
-        <polyline
-          points={toStr(half1)}
+      <g key={i}>
+        <path
+          d={d}
           fill="none"
           stroke={color}
-          strokeWidth={1.2}
+          strokeWidth={1.5}
           strokeLinecap="round"
-          strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
+          pathLength={100}
+          style={{
+            strokeDasharray: "30 100",
+            strokeDashoffset: 0,
+            transition: "stroke-dasharray 280ms ease-out",
+          }}
         />
-        <polyline
-          points={toStr(half2)}
+        <path
+          d={d}
           fill="none"
           stroke={color}
-          strokeWidth={1.2}
+          strokeWidth={1.5}
           strokeLinecap="round"
-          strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
+          pathLength={100}
+          style={{
+            strokeDasharray: "30 100",
+            strokeDashoffset: -70,
+            transition: "stroke-dasharray 280ms ease-out",
+          }}
         />
       </g>
     );
@@ -458,59 +360,107 @@ export function WireCutter({
       {/* ARENA */}
       <div
         ref={arenaRef}
-        className="relative w-full bg-white border-[3px] border-[#0A0A0A] shadow-[6px_6px_0_0_#0A0A0A]"
-        style={{ aspectRatio: "1 / 1" }}
+        className="relative w-full bg-white border-[3px] border-[#0A0A0A] shadow-[6px_6px_0_0_#0A0A0A] p-3"
+        style={{ aspectRatio: "4 / 5" }}
       >
-        <div
-          className="w-full h-full p-3 grid gap-3"
-          style={{
-            gridTemplateColumns: "1fr 1.2fr 1fr",
-            gridTemplateRows: "1fr 1.2fr 1fr",
-          }}
-        >
-          <div
-            ref={topPanelRef}
-            className="col-span-3 border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] bg-white"
-          >
-            {renderPanelButtons("T")}
-          </div>
-          <div
-            ref={leftPanelRef}
-            className="border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] bg-white"
-          >
-            {renderPanelButtons("L")}
-          </div>
-          {/* Core: opaque bezel so wires never overlap the screen */}
-          <div
-            ref={coreRef}
-            className="relative z-10 border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] bg-[#0A0A0A] p-1.5"
-          >
-            <div className="w-full h-full bg-[#E8E2D4] border-[3px] border-[#0A0A0A] flex items-center justify-center text-center px-2">
-              {coreContent}
+        {/* TOP ROW — bomb */}
+        <div className="w-full flex justify-center" style={{ height: "38%" }}>
+          <div className="relative h-full" style={{ width: "62%" }}>
+            <div className="relative z-10 w-full h-full bg-[#0A0A0A] border-[3px] border-[#0A0A0A] p-1.5 shadow-[4px_4px_0_0_#0A0A0A]">
+              <div className="w-full h-full bg-[#E8E2D4] border-[3px] border-[#0A0A0A] flex items-center justify-center text-center px-2">
+                {coreContent}
+              </div>
             </div>
-          </div>
-          <div
-            ref={rightPanelRef}
-            className="border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] bg-white"
-          >
-            {renderPanelButtons("R")}
-          </div>
-          <div
-            ref={bottomPanelRef}
-            className="col-span-3 border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] bg-white"
-          >
-            {renderPanelButtons("B")}
+            {/* hardware flange — wires plug into this strip */}
+            <div
+              ref={bombFlangeRef}
+              className="relative z-10 w-full bg-[#1F2937] border-[3px] border-t-0 border-[#0A0A0A]"
+              style={{ height: 14 }}
+            />
           </div>
         </div>
 
-        {/* SVG wire overlay — sits BELOW the core (which has z-10) so wires don't cross the timer */}
+        {/* MIDDLE — wire field (just spacer; SVG overlay draws the wires) */}
+        <div style={{ height: "20%" }} />
+
+        {/* BOTTOM — switch bank */}
+        <div className="w-full" style={{ height: "42%" }}>
+          <div className="w-full h-full bg-white border-[3px] border-[#0A0A0A] shadow-[3px_3px_0_0_#0A0A0A] p-2 md:p-3">
+            <div
+              className="w-full h-full grid place-items-center"
+              style={{
+                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                gap: "6px",
+              }}
+            >
+              {Array.from({ length: n }, (_, i) => {
+                const disabled = chosen !== null;
+                const isChosen = chosen === i;
+                const reveal = coreState === "verdict";
+                const isBombWire = i === bombIndex;
+                const value = switchValueByIndex.get(i);
+
+                // Idle/armed: show 1..N label. Verdict: show pool value or 💀.
+                let label: string | number = i + 1;
+                if (reveal) {
+                  label = isBombWire ? "💀" : typeof value === "number" ? value : i + 1;
+                }
+
+                // Bomb wire is highlighted red on verdict to expose what would
+                // have killed the player.
+                const revealColor = reveal && isBombWire ? "#DC2626" : undefined;
+                const revealBorder = reveal && isBombWire ? "4px solid #DC2626" : undefined;
+                const revealText = reveal && isBombWire ? "#fff" : undefined;
+                const revealBg = reveal && isBombWire ? "#DC2626" : undefined;
+                // Survive: highlight the chosen safe wire with a forest-green ring.
+                const isSurvivePick = reveal && isChosen && !isBombWire;
+
+                return (
+                  <button
+                    key={i}
+                    ref={(el) => {
+                      btnRefs.current[i] = el;
+                    }}
+                    onClick={() => handleClick(i)}
+                    disabled={disabled}
+                    aria-label={`חוט ${i + 1}`}
+                    className={[
+                      "rounded-full aspect-square",
+                      "border-[3px] border-[#0A0A0A] font-black bg-white text-ink",
+                      "flex items-center justify-center select-none transition-transform",
+                      disabled
+                        ? isChosen
+                          ? "opacity-100 shadow-[0_0_0_0_#0A0A0A]"
+                          : reveal
+                            ? "opacity-100 shadow-[0_0_0_0_#0A0A0A]"
+                            : "opacity-40 cursor-not-allowed shadow-none"
+                        : "shadow-[3px_3px_0_0_#0A0A0A] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#0A0A0A] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[0_0_0_0_#0A0A0A] cursor-pointer",
+                    ].join(" ")}
+                    style={{
+                      width: "clamp(20px, 8vw, 44px)",
+                      height: "clamp(20px, 8vw, 44px)",
+                      fontSize: "clamp(10px, 2.6vw, 16px)",
+                      color: revealText ?? revealColor,
+                      backgroundColor: revealBg,
+                      border: revealBorder ?? (isSurvivePick ? "4px solid #106B01" : undefined),
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* SVG wire overlay — sits BELOW bomb (z-10) so it never crosses the screen */}
         <svg
           className="absolute inset-0 pointer-events-none"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           aria-hidden
         >
-          {nodes.map((n) => renderWire(n))}
+          {Array.from({ length: n }, (_, i) => renderWire(i))}
         </svg>
 
         {/* Pliers overlay */}
@@ -530,18 +480,18 @@ export function WireCutter({
           <PliersIcon size={44} clamped={clamp} />
         </div>
 
-        {/* Floating +N over the chosen wire's terminal node on survive */}
+        {/* Floating +N over the chosen switch on survive */}
         {coreState === "verdict" &&
           outcome === "survive" &&
           chosen !== null &&
           typeof awardedPoints === "number" &&
           awardedPoints > 0 &&
-          wireEnds[chosen] && (
+          switchEnds[chosen] && (
             <span
               className="absolute pointer-events-none font-black text-2xl md:text-3xl text-[#106B01] z-30"
               style={{
-                left: `${wireEnds[chosen].x}%`,
-                top: `${wireEnds[chosen].y}%`,
+                left: `${switchEnds[chosen].x}%`,
+                top: `${switchEnds[chosen].y}%`,
                 transform: "translate(-50%, -50%)",
                 animation: "wire-score-pop 1400ms ease-out forwards",
                 textShadow: "2px 2px 0 #ffffff",

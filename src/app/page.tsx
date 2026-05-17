@@ -315,6 +315,8 @@ export default function GamePage() {
                 spin={phase === "spinning" && spinArmedRef.current}
                 onResolved={handleResolved}
                 onPlay={handleSpin}
+                slotPoints={verdict?.slotPoints}
+                baseValue={verdict?.baseValue}
                 awardedPoints={verdict?.awardedPoints}
               />
             )}
