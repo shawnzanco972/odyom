@@ -64,24 +64,18 @@ export function NextWheelCountdown() {
     const id = window.setInterval(() => setMins(minutesUntilNextDrop()), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  const segmentProgress = ((30 - mins) / 30) * 100;
   return (
     <div
       dir="rtl"
-      className="bg-white border-2 border-ink shadow-[4px_4px_0_0_#0A0A0A] rounded-xl p-4 font-rubik flex flex-col items-center justify-center gap-2"
+      className="font-rubik text-center text-xs md:text-sm font-black text-gray-concrete tabular-nums"
     >
-      <div className="text-xs font-bold text-gray-concrete uppercase tracking-wider">
-        החלפת גלגל הבאה
-      </div>
-      <div className="w-full h-3 bg-[#F9FAFB] border-2 border-ink rounded-full overflow-hidden">
-        <div
-          className="h-full bg-[#106B01] transition-[width] duration-700"
-          style={{ width: `${Math.min(100, Math.max(2, segmentProgress))}%` }}
-        />
-      </div>
-      <div className="text-sm font-bold text-ink tabular-nums">
-        {mins > 0 ? `עוד ${mins} דקות` : "ההחלפה הבאה: 08:00"}
-      </div>
+      {mins > 0 ? (
+        <>
+          הסיכון עולה בעוד <span className="text-ink">{mins}</span> דקות
+        </>
+      ) : (
+        "הסיכון עולה ב־08:00"
+      )}
     </div>
   );
 }

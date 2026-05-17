@@ -53,7 +53,7 @@ export function CardFlip({ totalSlices, outcome, spin, onResolved, onPlay }: Car
     <div className="w-full font-rubik" dir="rtl">
       {/* Live desk counter — centered above the grid */}
       <div className="text-center text-xs md:text-sm font-black text-ink mb-3 tabular-nums">
-        על השולחן: 🟢 {surviveCount} קלפי חיים | 🔴 1 קלף מוות
+        על השולחן: 🟢 {surviveCount} אסים | 🔴 ג'וקר אחד
       </div>
 
       <div className="w-full bg-white border-[3px] border-[#0A0A0A] shadow-[6px_6px_0_0_#0A0A0A] p-4">

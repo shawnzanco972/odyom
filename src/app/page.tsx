@@ -259,12 +259,6 @@ export default function GamePage() {
           </p>
         </div>
 
-        {/* TOP — next-wheel countdown + global Risk Gauge above the arena */}
-        <div className="w-full max-w-md flex flex-col gap-3">
-          <NextWheelCountdown />
-          <RiskGauge ballsDropped={slotState.ballsDropped} orientation="horizontal" />
-        </div>
-
         {/* Mode selector — visible only while idle */}
         {phase === "idle" && !alreadyPlayedToday && (
           <GameModeTabs active={activeGameMode} onChange={setActiveGameMode} />
@@ -309,6 +303,12 @@ export default function GamePage() {
               />
             )}
           </div>
+        </div>
+
+        {/* Below-arena: risk gauge + next-wheel countdown (compact, no boxes) */}
+        <div className="w-full max-w-md flex flex-col gap-2">
+          <RiskGauge ballsDropped={slotState.ballsDropped} orientation="horizontal" />
+          <NextWheelCountdown />
         </div>
 
         {/* Spin button — only for wheel mode */}
