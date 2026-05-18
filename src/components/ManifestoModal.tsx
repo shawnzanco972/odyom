@@ -21,11 +21,11 @@ function StrategyCard({
     <div
       dir="rtl"
       className={[
-        "p-3 md:p-4 border-[3px] shadow-[-4px_4px_0_0_#0A0A0A]",
+        "p-3 border-[3px] shadow-[-4px_4px_0_0_#0A0A0A]",
         accent.bg, accent.border,
       ].join(" ")}
     >
-      <h3 className="font-black text-base md:text-lg mb-1.5 leading-tight">{title}</h3>
+      <h3 className="font-black text-sm md:text-base mb-1 leading-tight">{title}</h3>
       <p className="text-xs md:text-sm leading-snug font-medium text-ink">{body}</p>
     </div>
   );
@@ -51,17 +51,31 @@ function SocialPoint({
   );
 }
 
+function InfoCard({ heading, body }: { heading?: string; body: string }) {
+  return (
+    <div
+      dir="rtl"
+      className="p-3 md:p-4 bg-white border-[3px] border-ink shadow-[-4px_4px_0_0_#0A0A0A]"
+    >
+      {heading && (
+        <h3 className="font-black text-sm md:text-base mb-1.5 leading-tight">{heading}</h3>
+      )}
+      <p className="text-xs md:text-sm leading-snug font-medium text-ink">{body}</p>
+    </div>
+  );
+}
+
 export function ManifestoModal({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[60] bg-ink/40 flex items-center justify-center p-3 md:p-6 font-rubik animate-[fadein_180ms_ease-out]"
+      className="fixed inset-0 z-[60] bg-ink/40 flex items-center justify-center p-3 md:p-4 font-rubik animate-[fadein_180ms_ease-out]"
     >
       <div
         style={{ backgroundColor: "#F6FBEE" }}
-        className="relative w-full max-w-[650px] max-h-[95vh] md:max-h-[90vh] border-[3px] border-ink shadow-[-6px_6px_0_0_#0A0A0A] overflow-y-auto"
+        className="relative w-full max-w-[680px] max-h-[92vh] border-[3px] border-ink shadow-[-6px_6px_0_0_#0A0A0A] overflow-y-auto"
       >
         {/* Closing X */}
         <button
@@ -72,74 +86,80 @@ export function ManifestoModal({ open, onClose }: Props) {
           ×
         </button>
 
-        <div className="px-4 md:px-6 pt-6 pb-5 md:pt-7 md:pb-6 flex flex-col gap-4 md:gap-5">
+        <div className="px-4 md:px-5 pt-5 pb-4 flex flex-col gap-3">
           {/* Header */}
           <header className="text-center">
             <h1
-              className="font-black uppercase tracking-tighter text-ink leading-none whitespace-nowrap"
-              style={{
-                fontSize: "clamp(1.5rem, 6vw, 2.5rem)",
-                textShadow: "3px 3px 0 #ffffff",
-              }}
+              className="font-black tracking-tight text-ink leading-none whitespace-nowrap text-2xl md:text-3xl"
+              style={{ textShadow: "2px 2px 0 #ffffff" }}
             >
               איך שורדים את היום? 💀
             </h1>
-            <p className="mt-2 text-sm md:text-base font-bold text-gray-concrete">
-              המטרה פשוטה: לעבור עוד 24 שעות של מציאות ישראלית בלי למות בגלגל.
+            <p className="mt-1.5 text-sm font-bold text-gray-concrete">
+              המטרה: לעבור עוד יום של מציאות ישראלית בלי למות.
             </p>
           </header>
 
-          {/* Strategy split */}
+          {/* Core concept */}
+          <InfoCard body="בכל בוקר מחדש, המציאות כאן מנסה לשבור אותך. המשימה שלך פשוטה: להיכנס פעם ביום, לבחור את המשחק שדרכו בא לך להתגרות בגורל היום (גלגל, קלפים, כוסות או חוטים) – ולנסות לשרוד. שרדת? תקבל משפט משעשע שמסביר איך שרדת את היום (הפעם). לא שרדת? הרצף (Streak) שלך יתאפס ותוכל לנסות שוב מחר ב-08:00. נתראה מחר." />
+
+          {/* Scoring & risk */}
+          <InfoCard
+            heading="איך עובד הניקוד?"
+            body="מאחורי כל בחירה מסתתר ערך ניקוד שונה. ככל ששעות היממה עוברות והסיכון עולה, ערכי הניקוד הנמוכים ביותר מתקלפים ונעלמים מן המשחקים. הניקוד עולה יחד עם הסיכון. המטרה היא לשרוד, ליצור רצף ימים ארוך, אבל גם לצבור כמה שיותר נקודות בעזרת מזל או סיכון מחושב."
+          />
+
+          {/* Player spectrum */}
           <section>
-            <h2 className="font-black text-base md:text-lg mb-2 text-center">
-              יש שתי דרכים לשחק.
-            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <StrategyCard
                 variant="survive"
-                title="השפויים (שחקני הבוקר) 🟢"
-                body="אנשים רציונליים שאכפת להם מרצף הימים. משחקים בבוקר כשהסיכון למות נמוך (5%). הסטריק בטוח — אבל הניקוד שהם מקבלים? פח אשפה."
+                title="🟢 השפויים (שחקני הבוקר)"
+                body="מייצגים את קצה הבטיחות. הם משחקים מוקדם כשהסיכון למות אפסי (5%). הרצף שלהם בטוח, אבל יש להם סיכוי גבוה ליפול על ניקוד נמוך."
               />
               <StrategyCard
                 variant="error"
-                title="המשוגעים (מהמרי הלילה) 🔴"
-                body="הפסיכופתים שרוצים לכבוש את הלידרבורד. מחכים ל־23:30 כשהגלגל מתכווץ ל־50/50 אכזרי. סיכון ענק למחוק את כל הסטריק — אבל המנצחים גורפים ניקוד פסיכי."
+                title="🔴 המשוגעים (מהמרי הלילה)"
+                body="מייצגים את קצה הטירוף. הם מחכים ל-23:30 כשהמשחק מתכווץ ל-50/50 מול המוות. סיכון ענק למחוק את הסטריק, אבל הניקוד מובטח להיות מקסימלי."
               />
             </div>
+            <p className="text-xs md:text-sm font-bold text-gray-concrete text-center mt-2">
+              רוב השחקנים יתמרנו איפשהו באמצע הטווח ויחשבו בדיוק מתי לפעול כדי לאזן בין הישרדות לחמדנות.
+            </p>
           </section>
 
-          {/* Social framework */}
-          <section>
-            <h2 className="font-black text-base md:text-lg mb-2 text-center">
-              המשחק גדול ממך לבד.
-            </h2>
-            <ul className="flex flex-col gap-2 list-none p-0">
-              <SocialPoint
-                emoji="👥"
-                label="משחק קבוצתי"
-                body="פתחו קבוצה סגורה רק לחברים שלכם ותראו למי יש את העצבים הכי חזקים."
-              />
-              <SocialPoint
-                emoji="🛟"
-                label="הצלת הסטריק"
-                body="מתתם? אל תבכו. תביאו חבר חדש למשחק דרך הלינק שלכם, ונבצע לכם החייאה ונציל לכם את הרצף."
-              />
-              <SocialPoint
-                emoji="✍️"
-                label="שיפור המשחק"
-                body="חושבים שאתם יותר מצחיקים מאיתנו? הציעו סיבות חדשות למה שרדתם או למה מתתם דרך כפתור ההצעות שבעמוד הטבלה (Leaderboard)."
-              />
-            </ul>
-          </section>
+          {/* Social */}
+          <ul className="flex flex-col gap-2 list-none p-0">
+            <SocialPoint
+              emoji="👥"
+              label="משחק קבוצתי"
+              body="הרבה יותר כיף למות ביחד. פתחו קבוצה סגורה רק לחברים שלכם ותראו למי יש את העצבים הכי חזקים."
+            />
+            <SocialPoint
+              emoji="🛟"
+              label="הצלת הסטריק"
+              body="מתתם? אל תבכו. תביאו חבר חדש למשחק דרך הלינק שלכם, ונבצע לכם החייאה ונציל לכם את הרצף."
+            />
+            <SocialPoint
+              emoji="✍️"
+              label="שיפור המשחק"
+              body="חושבים שאתם יותר מצחיקים מאיתנו? הציעו סיבות חדשות למה שרדתם או למה מתתם דרך כפתור ההצעות בעמוד הפרופיל שלכם."
+            />
+          </ul>
+
+          {/* Trigger line */}
+          <p className="text-sm md:text-base font-black text-ink text-center">
+            מי ישמור על הרצף הכי ארוך? מי יצבור הכי הרבה נקודות? ומי יהיה הכי משוגע וייקח יותר סיכונים?
+          </p>
 
           {/* CTA */}
-          <div className="flex justify-center pt-1">
+          <div className="flex justify-center pt-0.5">
             <BrutalButton
               variant="survive"
               onClick={onClose}
               className="text-base md:text-lg py-3 px-6"
             >
-              הבנתי, כנס אותי למשחק 🎲
+              הבנתי, אני רוצה לשחק 🎲
             </BrutalButton>
           </div>
         </div>
